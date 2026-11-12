@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/*
+ * Farben angelehnt an die Webseite des Österreichischen Bundesfeuerwehrverbands
+ * (Weiß, Feuerwehrrot, Anthrazit, Helvetica). Kein offizielles Logo.
+ */
+@theme {
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --color-rot-50: #fdf2f2;
+  --color-rot-100: #fbe3e3;
+  --color-rot-200: #f5c2c2;
+  --color-rot-500: #ca3232;
+  --color-rot-600: #b92121;
+  --color-rot-700: #a81010; /* Primärfarbe */
+  --color-rot-800: #860000;
+  --color-rot-900: #640000;
+
+  --color-anthrazit: #333333;
+  --color-dunkel: #101010;
+  --color-linie: #e1e1e1;
+  --color-flaeche: #f6f6f6;
+
+  --color-ok: #1f7a3a;
+  --color-ok-bg: #e5f4ea;
+  --color-warn: #8a5a00;
+  --color-warn-bg: #fdf2d6;
+  --color-fehler: #a81010;
+  --color-fehler-bg: #fbe3e3;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-flaeche text-anthrazit antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Große Touch-Ziele für Einsatz mit Handschuhen */
+@layer components {
+  .input {
+    @apply w-full rounded-md border border-linie bg-white px-3 py-2.5 text-base text-anthrazit outline-none
+      focus:border-rot-700 focus:ring-2 focus:ring-rot-200 disabled:bg-flaeche disabled:text-gray-500;
+  }
+  .label {
+    @apply mb-1 block text-sm font-semibold text-anthrazit;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
