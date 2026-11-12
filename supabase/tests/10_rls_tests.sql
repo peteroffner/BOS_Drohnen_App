@@ -222,6 +222,18 @@ select tests.ok(tests.zeilen(format($$update public.piloten set data = jsonb_set
 select tests.ok(tests.zeilen(format($$update public.piloten set data = data || '{"aktiv":false}' where id = %L$$, :'P2')) = 1, 'admin deaktiviert Piloten');
 select tests.als('p1');
 select tests.ok(tests.zeilen(format($$update public.piloten set data = data || '{"telefon":"0664 3"}' where id = %L$$, :'P1')) = 1, 'pilot ändert Stammdaten bei unveränderter Freigabe');
+-- Upsert (so schreibt der Sync-Client): BEFORE-INSERT-Trigger läuft auch im Konfliktfall
+select tests.ok(tests.zeilen(format($$insert into public.piloten (id, org_id, data, deleted) select id, org_id, data || '{"telefon":"0664 4"}', false from public.piloten where id = %L on conflict (id) do update set data = excluded.data, deleted = excluded.deleted$$, :'P1')) = 1,
+                'pilot: Upsert eigener Stammdaten bei erteilter Freigabe');
+select tests.fehler(format($$insert into public.piloten (id, org_id, data, deleted) select id, org_id, jsonb_set(data, '{freigabe}', '{"erteilt":true,"erteiltVon":"selbst"}'), false from public.piloten where id = %L on conflict (id) do update set data = excluded.data$$, :'P1'),
+                '42501', 'pilot: Upsert mit geänderter Freigabe abgelehnt');
+select tests.fehler(format($$insert into public.piloten (id, org_id, data, deleted) select id, org_id, data || '{"telefon":"x"}', false from public.piloten where id = %L on conflict (id) do update set data = excluded.data$$, :'P2'),
+                '42501', 'pilot: Upsert fremden Piloten abgelehnt');
+select tests.als('tl');
+select tests.ok(tests.zeilen(format($$insert into public.piloten (id, org_id, data, deleted) select id, org_id, data || '{"dienstgrad":"HFM"}', false from public.piloten where id = %L on conflict (id) do update set data = excluded.data, deleted = excluded.deleted$$, :'P1')) = 1,
+                'teamleiter: Upsert eines freigegebenen Piloten (Freigabe unverändert)');
+select tests.fehler(format($$insert into public.piloten (id, org_id, data, deleted) select id, org_id, jsonb_set(data, '{freigabe,erteilt}', 'false'), false from public.piloten where id = %L on conflict (id) do update set data = excluded.data$$, :'P1'),
+                '42501', 'teamleiter: Upsert mit entzogener Freigabe abgelehnt');
 
 -- =========================================================================
 -- 8. Geräte / Wartungen / Mängel

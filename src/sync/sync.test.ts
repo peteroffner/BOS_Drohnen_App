@@ -40,6 +40,8 @@ class FakeServer {
   tabellen = new Map<string, Map<string, Zeile>>()
   private uhr = 0
   offline = false
+  /** Anfragen ohne gültige Sitzung (nur anon-Key): PostgREST antwortet 401 / 42501 */
+  ohneSitzung = false
   regel: Regel | null = null
   aufrufe: Aufruf[] = []
   beimUpsert: (() => Promise<void>) | null = null
@@ -131,12 +133,13 @@ class Abfrage {
     this.grenze = n
     return this
   }
-  then<A, B>(ok?: (v: { data: unknown; error: Fehler | null }) => A, fail?: (e: unknown) => B) {
+  then<A, B>(ok?: (v: { data: unknown; error: Fehler | null; status?: number }) => A, fail?: (e: unknown) => B) {
     return this.ausfuehren().then(ok, fail)
   }
-  private async ausfuehren(): Promise<{ data: unknown; error: Fehler | null }> {
+  private async ausfuehren(): Promise<{ data: unknown; error: Fehler | null; status?: number }> {
     const s = this.server
     if (s.offline) return { data: null, error: { message: 'TypeError: Failed to fetch', code: '' } }
+    if (s.ohneSitzung) return { data: null, error: { message: `permission denied for table ${this.t}`, code: '42501' }, status: 401 }
     const tab = s.tab(this.t)
     if (this.op === 'upsert') {
       const rows = this.payload as Zeile[]
@@ -329,6 +332,26 @@ describe('Push', () => {
     await expect(__test.push()).rejects.toThrow(/nicht erreichbar/)
     const [e] = await outbox()
     expect(e).toMatchObject({ status: 'offen', versuche: 1 })
+  })
+
+  it('ohne gültige Sitzung (HTTP 401/42501): Einträge bleiben offen, nichts wird verworfen', async () => {
+    server.setze('piloten', { ...pilot('p1', 'Server') })
+    await db.piloten.add(pilot('p1', 'Server'))
+    setzeErfassungAktiv(true)
+    await db.piloten.update('p1', { nachname: 'Lokal' })
+    await db.piloten.delete('p1')
+    await db.geraete.add(geraet('g1'))
+    server.ohneSitzung = true
+    await expect(__test.push()).rejects.toThrow(/nicht erreichbar/)
+    expect((await outbox()).every((e) => e.status === 'offen')).toBe(true)
+    expect(await ausstehendeAenderungen()).toBe(2)
+    // nach erneuter Anmeldung kommt alles an
+    server.ohneSitzung = false
+    await __test.push()
+    await __test.push()
+    expect(await ausstehendeAenderungen()).toBe(0)
+    expect(server.tab('piloten').get('p1')!.deleted).toBe(true)
+    expect(server.tab('geraete').get('g1')).toBeTruthy()
   })
 
   it('Ablehnung (RLS 42501): Eintrag abgelehnt, Server-Stand wird lokal wiederhergestellt', async () => {

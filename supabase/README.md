@@ -158,6 +158,12 @@ Dokument (`id, org_id, data jsonb, deleted, created_by/at, updated_by/at`), dazu
   `23514` = Integrität (`id ≠ data.id`, `org_id ≠ data.orgId`, Pilot fremder Org).
   Achtung: Ein UPDATE, das RLS herausfiltert, liefert **keinen** Fehler, sondern
   0 Zeilen; ein Upsert auf einen nicht änderbaren Datensatz liefert dagegen 42501.
+  HTTP **401** mit 42501 („permission denied for table“) bedeutet: Anfrage ohne gültige
+  Sitzung (nur anon-Key) – keine fachliche Ablehnung, der Client lässt die Einträge offen.
+- Upsert prüft immer auch die **INSERT-Policy** und führt die **BEFORE-INSERT-Trigger**
+  aus – auch wenn die Zeile existiert und der Konflikt zum UPDATE wird. Policies und
+  Trigger müssen deshalb den Upsert eines bestehenden Datensatzes zulassen
+  (siehe `20261112000002_pilot_upsert.sql`: Pilot/Teamleiter ändern freigegebene Piloten).
 - `updated_at = now()` ist die Startzeit der Transaktion. Eine lange Transaktion kann
   mit einem Zeitstempel sichtbar werden, der kleiner als ein bereits gelesener Cursor
   ist. Empfehlung für den Pull: Cursor mit kleiner Überlappung (z. B. −5 s) abfragen;

@@ -112,8 +112,14 @@ interface PgFehler {
   hint?: string | null
 }
 
-/** Endgültige Ablehnung durch den Server (RLS, Trigger, Integrität) – alles andere gilt als vorübergehend. */
-function istAblehnung(e: PgFehler): boolean {
+/**
+ * Endgültige Ablehnung durch den Server (RLS, Trigger, Integrität) – alles andere gilt als vorübergehend.
+ * HTTP 401: Anfrage lief ohne gültige Sitzung (z. B. Token-Refresh fehlgeschlagen → supabase-js sendet
+ * nur den anon-Key; PostgREST meldet dann 42501 „permission denied“). Das ist KEINE fachliche Ablehnung –
+ * die Änderungen bleiben offen und werden nach erneuter Anmeldung gesendet.
+ */
+function istAblehnung(e: PgFehler, status?: number): boolean {
+  if (status === 401) return false
   return /^(42501|P0\d{3}|23\d{3}|22\d{3})$/.test(e.code ?? '')
 }
 
@@ -292,17 +298,17 @@ const zeile = (t: SyncTabelle, d: Datensatz) => ({
 async function pushPuts(t: SyncTabelle, puts: { e: OutboxEintrag; d: Datensatz }[]): Promise<void> {
   if (!puts.length) return
   const c = client!
-  const { error } = await c.from(t).upsert(
+  const { error, status } = await c.from(t).upsert(
     puts.map((p) => zeile(t, p.d)),
     { onConflict: 'id' },
   )
   if (!error) return erledigt(puts.map((p) => p.e))
-  if (!istAblehnung(error)) return temporaer(puts.map((p) => p.e), error)
+  if (!istAblehnung(error, status)) return temporaer(puts.map((p) => p.e), error)
   // Mindestens ein Datensatz abgelehnt → einzeln senden, um ihn zu finden
   for (const p of puts) {
     const r = await c.from(t).upsert([zeile(t, p.d)], { onConflict: 'id' })
     if (!r.error) await erledigt([p.e])
-    else if (istAblehnung(r.error)) await ablehnen(t, p.e, fehlerText(r.error))
+    else if (istAblehnung(r.error, r.status)) await ablehnen(t, p.e, fehlerText(r.error))
     else return temporaer([p.e], r.error)
   }
 }
@@ -311,9 +317,9 @@ async function pushDeletes(t: SyncTabelle, eintraege: OutboxEintrag[]): Promise<
   if (!eintraege.length) return
   const c = client!
   const ids = eintraege.map((e) => e.id)
-  const { data, error } = await c.from(t).update({ deleted: true }).in('id', ids).select('id')
+  const { data, error, status } = await c.from(t).update({ deleted: true }).in('id', ids).select('id')
   if (error) {
-    if (!istAblehnung(error)) return temporaer(eintraege, error)
+    if (!istAblehnung(error, status)) return temporaer(eintraege, error)
     if (eintraege.length > 1) {
       for (const e of eintraege) await pushDeletes(t, [e])
       return
