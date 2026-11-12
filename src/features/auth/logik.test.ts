@@ -59,7 +59,8 @@ describe('authFehlerText', () => {
     expect(authFehlerText({ name: 'AuthRetryableFetchError', message: 'Failed to fetch' })).toMatch(/Keine Verbindung/)
     expect(authFehlerText(new TypeError('Failed to fetch'))).toMatch(/Keine Verbindung/)
   })
-  it('Rate-Limit', () => expect(authFehlerText({ code: 'over_email_send_rate_limit', status: 429 })).toMatch(/Zu viele/))
+  it('E-Mail-Limit', () => expect(authFehlerText({ code: 'over_email_send_rate_limit', status: 429 })).toMatch(/E-Mail-Versand/))
+  it('Rate-Limit', () => expect(authFehlerText({ code: 'over_request_rate_limit', status: 429 })).toMatch(/Zu viele/))
   it('Unbekannt: Originaltext', () => expect(authFehlerText({ message: 'Irgendwas' })).toBe('Fehler: Irgendwas'))
 })
 

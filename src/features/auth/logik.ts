@@ -114,7 +114,9 @@ export function authFehlerText(err: unknown): string {
   if (code === 'weak_password' || (msg.includes('password') && (msg.includes('at least') || msg.includes('weak') || msg.includes('short'))))
     return `Das Passwort ist zu kurz oder zu schwach (mindestens ${MIN_PASSWORT_LAENGE} Zeichen).`
   if (code === 'same_password' || msg.includes('should be different')) return 'Das neue Passwort muss sich vom bisherigen unterscheiden.'
-  if (code.startsWith('over_') || code === 'over_email_send_rate_limit' || msg.includes('rate limit') || e.status === 429)
+  if (code === 'over_email_send_rate_limit' || msg.includes('email rate limit'))
+    return 'Der E-Mail-Versand ist derzeit ausgelastet (ohne eigenen Mailserver erlaubt Supabase nur wenige Mails pro Stunde). Bitte später erneut versuchen oder den Administrator kontaktieren.'
+  if (code.startsWith('over_') || msg.includes('rate limit') || e.status === 429)
     return 'Zu viele Versuche. Bitte einige Minuten warten und erneut versuchen.'
   if (code === 'email_address_invalid' || msg.includes('invalid email') || msg.includes('unable to validate email'))
     return 'Die E-Mail-Adresse ist ungültig.'
