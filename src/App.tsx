@@ -21,7 +21,7 @@ const AuswertungPage = lazy(() => import('./features/auswertung/AuswertungPage')
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <RequireOrg>
         <Routes>
           <Route element={<Layout />}>

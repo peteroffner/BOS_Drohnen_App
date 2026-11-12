@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 
+// Für GitHub Pages wird BASE_PATH=/<repo>/ gesetzt (siehe .github/workflows/deploy.yml)
 export default defineConfig({
+  base: process.env.BASE_PATH || '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -19,7 +21,8 @@ export default defineConfig({
         theme_color: '#a81010',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: '.',
+        scope: '.',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
