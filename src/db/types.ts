@@ -195,6 +195,8 @@ export interface Position {
 export interface Einsatz {
   id: ID
   orgId: ID
+  /** Supabase-User-ID des Anlegers (nur Cloud-Modus) – für „eigene Einsätze“ */
+  erstelltVon?: string
   status: EinsatzStatus
   art: EinsatzArt
   datum: ISODate // Beginn (Datum+Uhrzeit)
