@@ -1,5 +1,5 @@
 import { BookOpen, ClipboardList, Cog, Gauge, Home, Map, Plane, TriangleAlert, Users } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useOrg } from '../lib/useOrg'
 import { cx } from './ui'
@@ -76,7 +76,9 @@ export function Layout() {
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-8 md:pt-6">
-          <Outlet />
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
         </main>
 
         {/* Navigation unten (Smartphone) */}

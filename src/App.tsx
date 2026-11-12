@@ -1,22 +1,23 @@
+import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { RequireOrg } from './features/einstellungen/RequireOrg'
-import { EinstellungenPage } from './features/einstellungen/EinstellungenPage'
+const EinstellungenPage = lazy(() => import('./features/einstellungen/EinstellungenPage').then((m) => ({ default: m.EinstellungenPage })))
 // Modul A – Einsatz, Flugbuch, Notfall
-import { StartPage } from './features/einsatz/StartPage'
-import { EinsatzListePage } from './features/einsatz/EinsatzListePage'
-import { EinsatzNeuPage } from './features/einsatz/EinsatzNeuPage'
-import { EinsatzDetailPage } from './features/einsatz/EinsatzDetailPage'
-import { FlugbuchPage } from './features/flugbuch/FlugbuchPage'
-import { NotfallPage } from './features/notfall/NotfallPage'
+const StartPage = lazy(() => import('./features/einsatz/StartPage').then((m) => ({ default: m.StartPage })))
+const EinsatzListePage = lazy(() => import('./features/einsatz/EinsatzListePage').then((m) => ({ default: m.EinsatzListePage })))
+const EinsatzNeuPage = lazy(() => import('./features/einsatz/EinsatzNeuPage').then((m) => ({ default: m.EinsatzNeuPage })))
+const EinsatzDetailPage = lazy(() => import('./features/einsatz/EinsatzDetailPage').then((m) => ({ default: m.EinsatzDetailPage })))
+const FlugbuchPage = lazy(() => import('./features/flugbuch/FlugbuchPage').then((m) => ({ default: m.FlugbuchPage })))
+const NotfallPage = lazy(() => import('./features/notfall/NotfallPage').then((m) => ({ default: m.NotfallPage })))
 // Modul B – Piloten, Geräte, Wartung
-import { PilotenListePage } from './features/piloten/PilotenListePage'
-import { PilotDetailPage } from './features/piloten/PilotDetailPage'
-import { GeraeteListePage } from './features/geraete/GeraeteListePage'
-import { GeraetDetailPage } from './features/geraete/GeraetDetailPage'
+const PilotenListePage = lazy(() => import('./features/piloten/PilotenListePage').then((m) => ({ default: m.PilotenListePage })))
+const PilotDetailPage = lazy(() => import('./features/piloten/PilotDetailPage').then((m) => ({ default: m.PilotDetailPage })))
+const GeraeteListePage = lazy(() => import('./features/geraete/GeraeteListePage').then((m) => ({ default: m.GeraeteListePage })))
+const GeraetDetailPage = lazy(() => import('./features/geraete/GeraetDetailPage').then((m) => ({ default: m.GeraetDetailPage })))
 // Modul C – Karte, Auswertung, Export
-import { KartePage } from './features/karte/KartePage'
-import { AuswertungPage } from './features/auswertung/AuswertungPage'
+const KartePage = lazy(() => import('./features/karte/KartePage').then((m) => ({ default: m.KartePage })))
+const AuswertungPage = lazy(() => import('./features/auswertung/AuswertungPage').then((m) => ({ default: m.AuswertungPage })))
 
 export default function App() {
   return (

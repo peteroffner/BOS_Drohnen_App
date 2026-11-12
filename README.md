@@ -1,32 +1,27 @@
-# React + TypeScript + Vite
+# BOS Drohnen-App
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Offline-fähige Web-App (PWA) zur Dokumentation von Drohneneinsätzen für Feuerwehren (später weitere BOS).
+Grundlage sind die Formulare der Projektgruppe „Einsatz-Drohnen“ (BOS Drohnenausbildung):
+Checkliste Drohnenflug v9, Flugbuch v2, Notfall-Checkliste v2, Wartungsbuch v2.
 
-Currently, two official plugins are available:
+## Funktionen
+- **Einsatz-Workflow** nach Checkliste v9: Einsatzdaten mit automatischer Berechnung der Sicherheitsabstände → Vorbereitung → Vorflug- und Betriebskontrolle → Flüge mit Akkus (Start/Landung per Knopfdruck) → Einsatzende → Nachkontrolle → Unterschrift und Abschluss
+- **Flugbuch** wird automatisch aus den Flügen erzeugt
+- **NOTFALL**-Checkliste jederzeit erreichbar, Vorfälle werden im Einsatz protokolliert
+- **Piloten**: Qualifikationen mit Ablaufdatum, Freigabe als Einsatzpilot, Flugstunden automatisch, Ampel nach konfigurierbaren Regeln
+- **Geräte**: Akkus mit Zyklen, Wartungsbuch (Jahresmatrix), Mängel (auch automatisch aus der Nachkontrolle)
+- **Karte**: Startpunkt mit Sicherheitsradien, Link zu Dronespace (Austro Control)
+- **Auswertung & Export**: Dashboard, PDF (Flugbuch, Einsatzprotokoll), Excel, CSV, Backup/Restore, Demodaten
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Alle Daten bleiben lokal im Browser (IndexedDB). Regelmäßig ein Backup über *Einstellungen → Datensicherung* erstellen.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Starten
 ```
+npm install
+npm run dev
+```
+Produktions-Build: `npm run build` (Ausgabe in `dist/`, als statische Seite über HTTPS ausliefern, damit die App installierbar ist und offline läuft).
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Weitere Infos: [docs/KONZEPT.md](docs/KONZEPT.md), [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md)
+
+> Die App unterstützt die Dokumentation. Sie ersetzt nicht die verbindliche Luftraumprüfung in Dronespace und prüft keine Rechtsgrundlagen.
