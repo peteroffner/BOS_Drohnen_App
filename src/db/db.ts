@@ -8,6 +8,7 @@ import type {
   Pilot,
   WartungsPruefung,
 } from './types'
+import { erfassungsMiddleware, type OutboxEintrag } from '../sync/erfassung'
 
 /**
  * Lokale Offline-Datenbank (IndexedDB). Schema-Änderungen nur über neue
@@ -21,6 +22,8 @@ export class BosDb extends Dexie {
   wartungen!: EntityTable<WartungsPruefung, 'id'>
   maengel!: EntityTable<Mangel, 'id'>
   einstellungen!: EntityTable<AppEinstellung, 'key'>
+  /** Sync-Outbox (Cloud-Modus): ausstehende lokale Änderungen */
+  outbox!: EntityTable<OutboxEintrag, 'seq'>
 
   constructor(name = 'bos-drohnen') {
     super(name)
@@ -33,6 +36,12 @@ export class BosDb extends Dexie {
       maengel: 'id, orgId, geraetId, einsatzId, behobenAm',
       einstellungen: 'key',
     })
+    // Phase 2: Offline-Sync mit Supabase (Outbox). Sync-Cursor/Status in `einstellungen` (Keys `sync:*`).
+    this.version(2).stores({
+      outbox: '++seq, [tabelle+id], tabelle, status',
+    })
+    // Zentrale Änderungserfassung für die Outbox (src/sync/erfassung.ts)
+    this.use(erfassungsMiddleware)
   }
 }
 
