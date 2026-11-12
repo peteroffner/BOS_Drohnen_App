@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db } from '../../db/db'
 import type { Pilot } from '../../db/types'
-import { Button, Card, Checkbox, EmptyState, Modal, PageHeader, TextInput, cx } from '../../components/ui'
+import { Button, Card, Checkbox, EmptyState, Modal, NurAnsichtHinweis, PageHeader, TextInput, cx } from '../../components/ui'
 import { pilotName } from '../../lib/format'
 import { pilotStatus, type PilotStatus } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf, useMitgliedschaft } from '../auth/kontext'
 import { useEinsaetze, useGeraete } from '../geraete/daten'
 import { pilotVerwendet } from './logic'
 import { PilotFlugstunden } from './PilotFlugstunden'
@@ -20,12 +21,21 @@ export function PilotDetailPage() {
   const pilot = useLiveQuery(async () => (id ? ((await db.piloten.get(id)) ?? null) : null), [id])
   const einsaetze = useEinsaetze(org?.id)
   const geraete = useGeraete(org?.id)
+  const ich = useMitgliedschaft()
+  const darfVerwalten = useDarf('pilot.verwalten')
+  const darfEigene = useDarf('pilot.eigene_stammdaten')
+  const darfFreigabe = useDarf('freigabe.erteilen')
 
   if (!org || pilot === undefined || !einsaetze || !geraete) return null
   if (!pilot || pilot.orgId !== org.id)
     return <EmptyState title="Pilot nicht gefunden" action={<Link className="font-semibold text-rot-700" to="/piloten">Zur Pilotenliste</Link>} />
 
   const status = pilotStatus(pilot, einsaetze, org.freigabeRegeln)
+  // Rechte: verwalten (Admin/Teamleiter) oder eigener Datensatz (verknüpfter Pilot)
+  const eigen = !!ich?.pilotId && ich.pilotId === pilot.id
+  const bearbeiten = darfVerwalten || (eigen && darfEigene)
+  // aktiv/Freigabe ändert laut Server-Trigger nur der Administrator
+  const rechte = { bearbeiten, verwalten: darfVerwalten, aktivSetzen: darfVerwalten && darfFreigabe }
 
   return (
     <>
@@ -34,14 +44,15 @@ export function PilotDetailPage() {
       </Link>
       <PageHeader title={pilotName(pilot)} subtitle={[pilot.feuerwehr || org.name, !pilot.aktiv && 'inaktiv'].filter(Boolean).join(' · ')} />
       <AmpelPanel status={status} />
+      {!bearbeiten && <NurAnsichtHinweis className="mt-4" />}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Stammdaten key={pilot.id} pilot={pilot} verwendet={pilotVerwendet(pilot.id, einsaetze)} />
-        <PilotFreigabe key={pilot.id + 'f'} pilot={pilot} geraete={geraete} warnTage={org.freigabeRegeln.warnungTageVorAblauf} />
+        <Stammdaten key={pilot.id} pilot={pilot} verwendet={pilotVerwendet(pilot.id, einsaetze)} rechte={rechte} />
+        <PilotFreigabe key={pilot.id + 'f'} pilot={pilot} geraete={geraete} warnTage={org.freigabeRegeln.warnungTageVorAblauf} nurAnsicht={!darfFreigabe} />
         <div className="lg:col-span-2">
-          <PilotFlugstunden pilot={pilot} einsaetze={einsaetze} geraete={geraete} regelZeitraumTage={org.freigabeRegeln.zeitraumTage} />
+          <PilotFlugstunden pilot={pilot} einsaetze={einsaetze} geraete={geraete} regelZeitraumTage={org.freigabeRegeln.zeitraumTage} nurAnsicht={!bearbeiten} />
         </div>
         <div className="lg:col-span-2">
-          <PilotQualifikationen pilot={pilot} warnTage={org.freigabeRegeln.warnungTageVorAblauf} pflicht={org.freigabeRegeln.pflichtQualifikationen} />
+          <PilotQualifikationen pilot={pilot} warnTage={org.freigabeRegeln.warnungTageVorAblauf} pflicht={org.freigabeRegeln.pflichtQualifikationen} nurAnsicht={!bearbeiten} />
         </div>
       </div>
     </>
@@ -75,7 +86,9 @@ function AmpelPanel({ status }: { status: PilotStatus }) {
   )
 }
 
-function Stammdaten({ pilot, verwendet }: { pilot: Pilot; verwendet: boolean }) {
+type Rechte = { bearbeiten: boolean; verwalten: boolean; aktivSetzen: boolean }
+
+function Stammdaten({ pilot, verwendet, rechte }: { pilot: Pilot; verwendet: boolean; rechte: Rechte }) {
   const nav = useNavigate()
   const [p, setP] = useState(pilot)
   const [gespeichert, setGespeichert] = useState<Pilot | null>(null)
@@ -101,25 +114,37 @@ function Stammdaten({ pilot, verwendet }: { pilot: Pilot; verwendet: boolean }) 
 
   return (
     <Card title="Stammdaten">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextInput label="Vorname *" value={p.vorname} onChange={set('vorname')} />
-        <TextInput label="Nachname *" value={p.nachname} onChange={set('nachname')} />
-        <TextInput label="Dienstgrad" value={p.dienstgrad ?? ''} onChange={set('dienstgrad')} />
-        <TextInput label="Feuerwehr" value={p.feuerwehr ?? ''} onChange={set('feuerwehr')} hint="leer = eigene Organisation" />
-        <TextInput label="Telefon" type="tel" value={p.telefon ?? ''} onChange={set('telefon')} />
-        <TextInput label="E-Mail" type="email" value={p.email ?? ''} onChange={set('email')} />
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button disabled={!ok} onClick={speichern}>
-          Speichern
-        </Button>
-        {gespeichert === p && <span className="text-sm text-ok">Gespeichert</span>}
-      </div>
+      <fieldset disabled={!rechte.bearbeiten} className="min-w-0">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextInput label="Vorname *" value={p.vorname} onChange={set('vorname')} />
+          <TextInput label="Nachname *" value={p.nachname} onChange={set('nachname')} />
+          <TextInput label="Dienstgrad" value={p.dienstgrad ?? ''} onChange={set('dienstgrad')} />
+          <TextInput label="Feuerwehr" value={p.feuerwehr ?? ''} onChange={set('feuerwehr')} hint="leer = eigene Organisation" />
+          <TextInput label="Telefon" type="tel" value={p.telefon ?? ''} onChange={set('telefon')} />
+          <TextInput label="E-Mail" type="email" value={p.email ?? ''} onChange={set('email')} />
+        </div>
+        {rechte.bearbeiten && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button disabled={!ok} onClick={speichern}>
+              Speichern
+            </Button>
+            {gespeichert === p && <span className="text-sm text-ok">Gespeichert</span>}
+          </div>
+        )}
+      </fieldset>
       <div className="mt-4 border-t border-linie pt-3">
-        <Checkbox label="Pilot aktiv" hint="Inaktive Piloten werden bei der Einsatzanlage nicht angeboten." checked={pilot.aktiv} onChange={aktivSetzen} />
-        <Button variant="ghost" size="sm" className="mt-2" icon={<Trash2 size={16} />} onClick={() => setLoeschen(true)}>
-          Pilot löschen
-        </Button>
+        <Checkbox
+          label="Pilot aktiv"
+          hint={rechte.aktivSetzen ? 'Inaktive Piloten werden bei der Einsatzanlage nicht angeboten.' : 'Aktivieren/Deaktivieren nur durch den Administrator.'}
+          checked={pilot.aktiv}
+          onChange={aktivSetzen}
+          disabled={!rechte.aktivSetzen}
+        />
+        {rechte.verwalten && (
+          <Button variant="ghost" size="sm" className="mt-2" icon={<Trash2 size={16} />} onClick={() => setLoeschen(true)}>
+            Pilot löschen
+          </Button>
+        )}
       </div>
 
       <Modal
@@ -132,7 +157,7 @@ function Stammdaten({ pilot, verwendet }: { pilot: Pilot; verwendet: boolean }) 
               <Button variant="secondary" onClick={() => setLoeschen(false)}>
                 Abbrechen
               </Button>
-              {pilot.aktiv && (
+              {pilot.aktiv && rechte.aktivSetzen && (
                 <Button
                   onClick={async () => {
                     await aktivSetzen(false)

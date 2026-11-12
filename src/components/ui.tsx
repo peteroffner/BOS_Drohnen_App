@@ -235,3 +235,16 @@ export function Modal({ open, onClose, title, children, footer }: { open: boolea
   )
 }
 
+
+/** Hinweis, wenn die Rolle des Benutzers hier nur Lesen erlaubt (Cloud-Modus). */
+export function NurAnsichtHinweis({ text = 'Keine Berechtigung – nur Ansicht', className }: { text?: ReactNode; className?: string }) {
+  return (
+    <p role="note" data-testid="nur-ansicht" className={cx('flex items-center gap-2 rounded-md border border-linie bg-flaeche px-3 py-2 text-sm font-semibold text-gray-700', className)}>
+      <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      {text}
+    </p>
+  )
+}

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, jetzt, neueId } from '../../db/db'
-import { PageHeader } from '../../components/ui'
+import { NurAnsichtHinweis, PageHeader } from '../../components/ui'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf, useMitgliedschaft } from '../auth/kontext'
 import { EinsatzDatenForm } from './components/EinsatzDatenForm'
 import { useEinsaetze, useGeraete, useMaengel, usePiloten } from './data'
 import { neuerEinsatz } from './logic/einsatz'
@@ -16,7 +17,16 @@ export function EinsatzNeuPage() {
   const maengel = useMaengel(orgId)
   const einsaetze = useEinsaetze(orgId)
   const [start] = useState(() => neuerEinsatz(neueId(), orgId, jetzt()))
+  const darfAnlegen = useDarf('einsatz.anlegen')
+  const ich = useMitgliedschaft()
 
+  if (!darfAnlegen)
+    return (
+      <>
+        <PageHeader title="Neuer Einsatz" />
+        <NurAnsichtHinweis text="Keine Berechtigung – Einsätze anlegen ist mit deiner Rolle nicht möglich." />
+      </>
+    )
   if (!org || !piloten || !geraete || !maengel || !einsaetze) return null
 
   return (
@@ -33,7 +43,8 @@ export function EinsatzNeuPage() {
         onAbbrechen={() => nav(-1)}
         onSpeichern={async (e) => {
           const t = jetzt()
-          await db.einsaetze.add({ ...e, orgId: org.id, status: 'vorbereitung', erstelltAm: t, geaendertAm: t })
+          // Cloud-Modus: Anleger merken (für „eigene Einsätze“)
+          await db.einsaetze.add({ ...e, orgId: org.id, status: 'vorbereitung', erstelltAm: t, geaendertAm: t, ...(ich ? { erstelltVon: ich.userId } : {}) })
           nav(`/einsaetze/${e.id}`, { replace: true })
         }}
       />

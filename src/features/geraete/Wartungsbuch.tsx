@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { db, jetzt, neueId } from '../../db/db'
 import type { Geraet, Mangel, WartungsPruefung } from '../../db/types'
 import { Button, Card, Modal, Select, TextArea, TextInput, cx } from '../../components/ui'
+import { useDarf } from '../auth/kontext'
 import { fmtDatum, fromDateInput, toDateInput } from '../../lib/format'
 import { INTERVALL_LABEL, istFaellig, MONATE, MONATE_KURZ, neueMaengelAusPruefung, vorbelegung, wartungsMatrix, wartungsPunkte, type Ergebnis, type WartungsPunkt } from './logic'
 
@@ -13,6 +14,7 @@ export function Wartungsbuch({ geraet, wartungen, maengel }: { geraet: Geraet; w
   const [heute] = useState(() => new Date())
   const [jahr, setJahr] = useState(heute.getFullYear())
   const [formular, setFormular] = useState<{ jahr: number; monat: number } | null>(null)
+  const darfPruefen = useDarf('wartung.durchfuehren')
   const matrix = wartungsMatrix(geraet, wartungen, jahr)
   const aktJahr = heute.getFullYear()
   const aktMonat = heute.getMonth() + 1
@@ -28,9 +30,11 @@ export function Wartungsbuch({ geraet, wartungen, maengel }: { geraet: Geraet; w
     <Card
       title="Wartungsbuch (monatliche Prüfung)"
       actions={
-        <Button size="sm" icon={<ClipboardCheck size={16} />} onClick={() => setFormular({ jahr: aktJahr, monat: aktMonat })}>
-          Monatsprüfung durchführen
-        </Button>
+        darfPruefen && (
+          <Button size="sm" icon={<ClipboardCheck size={16} />} onClick={() => setFormular({ jahr: aktJahr, monat: aktMonat })}>
+            Monatsprüfung durchführen
+          </Button>
+        )
       }
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -77,6 +81,7 @@ export function Wartungsbuch({ geraet, wartungen, maengel }: { geraet: Geraet; w
                       type="button"
                       className={cx('flex min-h-11 w-full min-w-11 flex-col items-center justify-center px-1 hover:bg-rot-100', p ? 'text-dunkel' : 'text-gray-500')}
                       title={p ? `${MONATE[i]}: geprüft am ${fmtDatum(p.datum)} von ${p.pruefer} – bearbeiten` : `${MONATE[i]} ${jahr}: Prüfung erfassen`}
+                      disabled={!darfPruefen}
                       onClick={() => setFormular({ jahr, monat: i + 1 })}
                     >
                       {m}
@@ -127,7 +132,9 @@ export function Wartungsbuch({ geraet, wartungen, maengel }: { geraet: Geraet; w
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-gray-600">Monat antippen, um die Prüfung zu erfassen oder zu bearbeiten. Je Monat gibt es genau eine Prüfung.</p>
+      <p className="mt-2 text-xs text-gray-600">
+        {darfPruefen ? 'Monat antippen, um die Prüfung zu erfassen oder zu bearbeiten. Je Monat gibt es genau eine Prüfung.' : 'Prüfungen erfassen nur Administratoren und Teamleiter – nur Ansicht.'}
+      </p>
 
       {formular && (
         <PruefungModal

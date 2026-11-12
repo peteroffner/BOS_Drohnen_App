@@ -10,7 +10,19 @@ import { fluegeVonPilot, teileMinuten, zuMinuten } from './logic'
 
 const ART_LABEL = { einsatz: 'Einsatz', training: 'Training', checkflug: 'Checkflug' } as const
 
-export function PilotFlugstunden({ pilot, einsaetze, geraete, regelZeitraumTage }: { pilot: Pilot; einsaetze: Einsatz[]; geraete: Geraet[]; regelZeitraumTage: number }) {
+export function PilotFlugstunden({
+  pilot,
+  einsaetze,
+  geraete,
+  regelZeitraumTage,
+  nurAnsicht = false,
+}: {
+  pilot: Pilot
+  einsaetze: Einsatz[]
+  geraete: Geraet[]
+  regelZeitraumTage: number
+  nurAnsicht?: boolean
+}) {
   const s = pilotStatistik(pilot, einsaetze, regelZeitraumTage)
   const fluege = fluegeVonPilot(pilot.id, einsaetze)
   const geraetName = (id: string) => geraete.find((g) => g.id === id)?.name ?? 'unbekanntes Gerät'
@@ -58,7 +70,7 @@ export function PilotFlugstunden({ pilot, einsaetze, geraete, regelZeitraumTage 
               </tbody>
             </table>
           )}
-          <Vorerfasst key={`${vorMin}-${vorFl}`} pilot={pilot} />
+          <Vorerfasst key={`${vorMin}-${vorFl}`} pilot={pilot} nurAnsicht={nurAnsicht} />
         </div>
 
         <div>
@@ -97,7 +109,7 @@ export function PilotFlugstunden({ pilot, einsaetze, geraete, regelZeitraumTage 
 }
 
 /** Stunden/Flüge vor Einführung der App – werden zur Gesamtsumme addiert. */
-function Vorerfasst({ pilot }: { pilot: Pilot }) {
+function Vorerfasst({ pilot, nurAnsicht }: { pilot: Pilot; nurAnsicht: boolean }) {
   const start = teileMinuten(pilot.vorerfassteMinuten ?? 0)
   const [h, setH] = useState(String(start.stunden))
   const [m, setM] = useState(String(start.minuten))
@@ -106,7 +118,7 @@ function Vorerfasst({ pilot }: { pilot: Pilot }) {
   const neuMin = zuMinuten(zahl(h), zahl(m))
   const geaendert = neuMin !== (pilot.vorerfassteMinuten ?? 0) || zahl(n) !== (pilot.vorerfassteFluege ?? 0)
   return (
-    <div className="mt-6 rounded-md border border-dashed border-linie bg-flaeche p-3">
+    <fieldset disabled={nurAnsicht} className="mt-6 min-w-0 rounded-md border border-dashed border-linie bg-flaeche p-3">
       <h3 className="font-bold">
         Vorerfasst <span className="text-sm font-normal text-gray-600">(vor Einführung der App)</span>
       </h3>
@@ -116,14 +128,16 @@ function Vorerfasst({ pilot }: { pilot: Pilot }) {
         <TextInput label="Minuten" type="number" min={0} max={59} inputMode="numeric" value={m} onChange={(e) => setM(e.target.value)} />
         <TextInput label="Flüge" type="number" min={0} inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} />
       </div>
-      <Button
-        className="mt-3"
-        variant="secondary"
-        disabled={!geaendert}
-        onClick={() => db.piloten.update(pilot.id, { vorerfassteMinuten: neuMin || undefined, vorerfassteFluege: zahl(n) || undefined })}
-      >
-        Vorerfasste Werte speichern
-      </Button>
-    </div>
+      {!nurAnsicht && (
+        <Button
+          className="mt-3"
+          variant="secondary"
+          disabled={!geaendert}
+          onClick={() => db.piloten.update(pilot.id, { vorerfassteMinuten: neuMin || undefined, vorerfassteFluege: zahl(n) || undefined })}
+        >
+          Vorerfasste Werte speichern
+        </Button>
+      )}
+    </fieldset>
   )
 }

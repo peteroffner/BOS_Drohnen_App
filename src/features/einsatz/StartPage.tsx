@@ -7,6 +7,7 @@ import { formatStunden } from '../../lib/calc'
 import { pilotName } from '../../lib/format'
 import { alleFluege, pilotStatus, type PilotStatus } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf } from '../auth/kontext'
 import { EinsatzZeile } from './components/EinsatzZeile'
 import { useEinsaetze, useGeraete, useMaengel, usePiloten } from './data'
 import { GERAET_STATUS_LABEL } from './logic/einsatz'
@@ -19,6 +20,7 @@ export function StartPage() {
   const geraete = useGeraete(orgId)
   const maengel = useMaengel(orgId)
   const [jahr] = useState(() => new Date().getFullYear())
+  const darfAnlegen = useDarf('einsatz.anlegen')
   if (!org || !einsaetze || !piloten || !geraete || !maengel) return null
 
   const sortiert = [...einsaetze].sort((a, b) => b.datum.localeCompare(a.datum))
@@ -46,12 +48,14 @@ export function StartPage() {
         <p className="text-sm text-gray-600">Einsatzdokumentation Drohne</p>
       </div>
 
-      <Link
-        to="/einsaetze/neu"
-        className="flex min-h-20 items-center justify-center gap-3 rounded-lg bg-rot-700 px-6 text-xl font-bold text-white shadow-sm hover:bg-rot-800 active:bg-rot-900"
-      >
-        <Plus size={30} strokeWidth={3} /> Neuer Einsatz
-      </Link>
+      {darfAnlegen && (
+        <Link
+          to="/einsaetze/neu"
+          className="flex min-h-20 items-center justify-center gap-3 rounded-lg bg-rot-700 px-6 text-xl font-bold text-white shadow-sm hover:bg-rot-800 active:bg-rot-900"
+        >
+          <Plus size={30} strokeWidth={3} /> Neuer Einsatz
+        </Link>
+      )}
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label={`Einsätze ${jahr}`} value={einsaetzeJahr.length} />

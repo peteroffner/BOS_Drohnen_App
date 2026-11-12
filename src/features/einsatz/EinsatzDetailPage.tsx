@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { db, jetzt } from '../../db/db'
 import type { ChecklistAntwort, ChecklistItem, ChecklistPhase, Einsatz } from '../../db/types'
-import { Badge, Button, Card, EmptyState, Modal } from '../../components/ui'
+import { Badge, Button, Card, EmptyState, Modal, NurAnsichtHinweis } from '../../components/ui'
 import { fmtDatumZeit } from '../../lib/format'
 import { useOrg } from '../../lib/useOrg'
+import { useEinsatzRechte } from '../auth/kontext'
 import { VORLAGEN } from '../../templates/checkliste_v9'
 import { AbschlussSchritt } from './components/Abschluss'
 import { ChecklisteSektion } from './components/Checkliste'
@@ -93,7 +94,10 @@ function Detail({ einsatz, ctx }: { einsatz: Einsatz; ctx: Ctx }) {
   const liste = schritte(einsatz, vorlage)
   const [vorschlag] = useState(() => startSchritt(einsatz, liste))
   const aktiv = Math.min(8, Math.max(1, Number(params.get('schritt')) || vorschlag))
-  const gesperrt = einsatz.status === 'abgeschlossen'
+  const rechte = useEinsatzRechte(einsatz)
+  const abgeschlossen = einsatz.status === 'abgeschlossen'
+  /** schreibgeschützt: abgeschlossen ODER keine Berechtigung (Cloud-Modus) */
+  const gesperrt = abgeschlossen || !rechte.bearbeiten
   const freigabe = vorlage ? flugFreigabe(einsatz, vorlage) : { frei: true, offen: [], uebersteuert: [] }
 
   const geheZu = (nr: number) => {
@@ -106,6 +110,7 @@ function Detail({ einsatz, ctx }: { einsatz: Einsatz; ctx: Ctx }) {
   }
 
   const onAntwort = (item: ChecklistItem, wert: ChecklistAntwort | undefined) => {
+    if (gesperrt) return
     void speichereAntwort(einsatz.id, item.id, wert, (e) => {
       if (istDronespaceItem(item)) e.dronespaceGeprueft = wert === true ? jetzt() : undefined
     })
@@ -154,7 +159,7 @@ function Detail({ einsatz, ctx }: { einsatz: Einsatz; ctx: Ctx }) {
             <Button variant="secondary" icon={<Printer size={18} />} onClick={() => window.print()}>
               Protokoll drucken
             </Button>
-            {!gesperrt && (
+            {rechte.loeschen && (
               <Button variant="secondary" icon={<Trash2 size={18} />} onClick={() => setLoeschen(true)} aria-label="Einsatz löschen">
                 <span className="hidden sm:inline">Löschen</span>
               </Button>
@@ -166,6 +171,9 @@ function Detail({ einsatz, ctx }: { einsatz: Einsatz; ctx: Ctx }) {
           <p role="alert" className="mb-3 font-semibold text-fehler">
             PDF konnte nicht erstellt werden – bitte „Protokoll drucken“ verwenden.
           </p>
+        )}
+        {!abgeschlossen && !rechte.bearbeiten && (
+          <NurAnsichtHinweis className="mb-3" text="Keine Berechtigung – nur Ansicht. Diesen Einsatz können nur der Anleger, eingetragene Piloten oder Teamleiter bearbeiten." />
         )}
         <SchrittLeiste liste={liste} aktiv={aktiv} onWahl={geheZu} />
         <h2 className="mb-3 mt-4 text-xl font-bold text-dunkel">
@@ -230,7 +238,7 @@ function Detail({ einsatz, ctx }: { einsatz: Einsatz; ctx: Ctx }) {
             </>
           )}
           {aktiv === 6 && <EinsatzendeSchritt einsatz={einsatz} gesperrt={gesperrt} />}
-          {aktiv === 8 && <AbschlussSchritt einsatz={einsatz} />}
+          {aktiv === 8 && <AbschlussSchritt einsatz={einsatz} nurAnsicht={!rechte.bearbeiten} darfNachtrag={rechte.nachtrag} />}
 
           <div className="flex justify-between gap-2">
             {aktiv > 1 ? (

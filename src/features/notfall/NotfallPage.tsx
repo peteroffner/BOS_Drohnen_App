@@ -8,6 +8,7 @@ import { cx } from '../../components/ui'
 import { fmtZeit } from '../../lib/format'
 import { NOTFALL_V2 } from '../../templates/notfall_v2'
 import { aendereEinsatz } from '../einsatz/data'
+import { useEinsatzRechte } from '../auth/kontext'
 import { notfallAnker, notfallEreignis } from './notfall'
 
 /** Notfall-Checkliste v2 – groß und kontraststark für Stresssituationen */
@@ -17,7 +18,8 @@ export function NotfallPage() {
   const einsatz = useLiveQuery(async () => (einsatzId ? ((await db.einsaetze.get(einsatzId)) ?? null) : null), [einsatzId])
   const [protokolliert, setProtokolliert] = useState<Record<number, string>>({})
   const [markiert, setMarkiert] = useState<number>()
-  const kannProtokollieren = !!einsatz && einsatz.status !== 'abgeschlossen'
+  const rechte = useEinsatzRechte(einsatz)
+  const kannProtokollieren = !!einsatz && rechte.bearbeiten
 
   const springe = (nr: number) => {
     document.getElementById(notfallAnker(nr))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -53,7 +55,7 @@ export function NotfallPage() {
             </Link>
             <span className="text-sm">
               {einsatz.fluggebiet || einsatz.grund || 'Einsatz'}
-              {!kannProtokollieren && ' (abgeschlossen – Protokollieren nicht möglich)'}
+              {!kannProtokollieren && (einsatz.status === 'abgeschlossen' ? ' (abgeschlossen – Protokollieren nicht möglich)' : ' (keine Berechtigung – Protokollieren nicht möglich)')}
             </span>
           </div>
         )}

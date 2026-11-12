@@ -2,6 +2,8 @@ import { Lock, NotebookPen } from 'lucide-react'
 import { useState } from 'react'
 import type { Einsatz } from '../../../db/types'
 import { Badge, Button, Card, Checkbox, Segmented, TextArea, TextInput } from '../../../components/ui'
+import { useMitgliedschaft } from '../../auth/kontext'
+import { mitgliedName } from '../../auth/logik'
 import { jetzt } from '../../../db/db'
 import { fmtDatumZeit, fromDateInput, toDateInput } from '../../../lib/format'
 import { abschlussHindernisse, rolleName } from '../logic/einsatz'
@@ -12,8 +14,10 @@ import { UnterschriftFeld } from './Unterschrift'
 const speichere = (id: string, patch: Partial<Einsatz>) => aendereEinsatz(id, (e) => Object.assign(e, patch))
 
 /** Schritt 8: Anmerkungen, Unfall, Unterschrift, Abschließen */
-export function AbschlussSchritt({ einsatz }: { einsatz: Einsatz }) {
-  const gesperrt = einsatz.status === 'abgeschlossen'
+export function AbschlussSchritt({ einsatz, nurAnsicht = false, darfNachtrag = true }: { einsatz: Einsatz; nurAnsicht?: boolean; darfNachtrag?: boolean }) {
+  const abgeschlossen = einsatz.status === 'abgeschlossen'
+  /** schreibgeschützt: abgeschlossen oder keine Berechtigung */
+  const gesperrt = abgeschlossen || nurAnsicht
   const [ohneFlug, setOhneFlug] = useState(false)
   const [bestaetigen, setBestaetigen] = useState(false)
   const hindernisse = abschlussHindernisse(einsatz, ohneFlug)
@@ -99,13 +103,13 @@ export function AbschlussSchritt({ einsatz }: { einsatz: Einsatz }) {
         </div>
       </Card>
 
-      {gesperrt ? (
+      {abgeschlossen ? (
         <Card>
           <p className="flex items-center gap-2 font-semibold text-ok">
             <Lock size={18} /> Einsatz abgeschlossen am {fmtDatumZeit(einsatz.abgeschlossenAm)} – schreibgeschützt.
           </p>
         </Card>
-      ) : (
+      ) : nurAnsicht ? null : (
         <Card title="Einsatz abschließen">
           {einsatz.fluege.length === 0 && (
             <Checkbox checked={ohneFlug} onChange={setOhneFlug} label="Einsatz ohne Flug abschließen" hint="z. B. Flug abgebrochen, Wetter, Auftrag storniert" />
@@ -147,13 +151,15 @@ export function AbschlussSchritt({ einsatz }: { einsatz: Einsatz }) {
         </Card>
       )}
 
-      {gesperrt && <Nachtraege einsatz={einsatz} />}
+      {abgeschlossen && <Nachtraege einsatz={einsatz} darfHinzufuegen={darfNachtrag} />}
     </div>
   )
 }
 
-export function Nachtraege({ einsatz }: { einsatz: Einsatz }) {
-  const [autor, setAutor] = useState('')
+export function Nachtraege({ einsatz, darfHinzufuegen = true }: { einsatz: Einsatz; darfHinzufuegen?: boolean }) {
+  const ich = useMitgliedschaft()
+  // Cloud-Modus: Autor mit dem eigenen Namen vorbelegen
+  const [autor, setAutor] = useState(() => (ich ? mitgliedName(ich) : ''))
   const [text, setText] = useState('')
   const [offen, setOffen] = useState(false)
   const liste = einsatz.nachtraege ?? []
@@ -171,7 +177,7 @@ export function Nachtraege({ einsatz }: { einsatz: Einsatz }) {
           ))}
         </ol>
       )}
-      {offen ? (
+      {!darfHinzufuegen ? null : offen ? (
         <div className="flex flex-col gap-3">
           <TextInput label="Autor" value={autor} onChange={(e) => setAutor(e.target.value)} />
           <TextArea label="Nachtrag" value={text} onChange={(e) => setText(e.target.value)} />

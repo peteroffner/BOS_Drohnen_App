@@ -4,6 +4,7 @@ import { db, neueId } from '../../db/db'
 import type { Akku, Einsatz, Geraet } from '../../db/types'
 import { Badge, Button, Card, Checkbox, EmptyState, Modal, Segmented, TextInput } from '../../components/ui'
 import { geraetStatistik } from '../../lib/stats'
+import { useDarf } from '../auth/kontext'
 import { AKKU_ART_LABEL, AKKU_STATUS_LABEL, akkuVerwendet } from './logic'
 
 const STATUS_FARBE: Record<Akku['status'], 'gruen' | 'gelb' | 'grau'> = { ok: 'gruen', beobachten: 'gelb', ausgemustert: 'grau' }
@@ -25,15 +26,18 @@ export function GeraetAkkus({ geraet, einsaetze }: { geraet: Geraet; einsaetze: 
     await db.geraete.update(geraet.id, { akkus: geraet.akkus.filter((x) => x.id !== id) })
     setBearbeiten(null)
   }
+  const darfVerwalten = useDarf('geraet.verwalten')
   const naechsteNr = String(geraet.akkus.filter((a) => a.art === 'drohne').length + 1)
 
   return (
     <Card
       title="Akkus"
       actions={
-        <Button size="sm" icon={<Plus size={16} />} onClick={() => setBearbeiten({ id: neueId(), nummer: naechsteNr, art: 'drohne', status: 'ok' })}>
-          Akku hinzufügen
-        </Button>
+        darfVerwalten && (
+          <Button size="sm" icon={<Plus size={16} />} onClick={() => setBearbeiten({ id: neueId(), nummer: naechsteNr, art: 'drohne', status: 'ok' })}>
+            Akku hinzufügen
+          </Button>
+        )
       }
     >
       <p className="mb-2 text-sm text-gray-600">Zyklen werden automatisch aus den Flügen gezählt (1 Flug = 1 Zyklus) und zu den vorerfassten Zyklen addiert.</p>
@@ -57,9 +61,11 @@ export function GeraetAkkus({ geraet, einsaetze }: { geraet: Geraet; einsaetze: 
                   {a.bemerkung ? ` · ${a.bemerkung}` : ''}
                 </div>
               </div>
-              <Button variant="secondary" size="sm" icon={<Pencil size={16} />} onClick={() => setBearbeiten(a)} aria-label={`Akku ${a.nummer} bearbeiten`}>
-                Bearbeiten
-              </Button>
+              {darfVerwalten && (
+                <Button variant="secondary" size="sm" icon={<Pencil size={16} />} onClick={() => setBearbeiten(a)} aria-label={`Akku ${a.nummer} bearbeiten`}>
+                  Bearbeiten
+                </Button>
+              )}
             </li>
           ))}
         </ul>

@@ -4,11 +4,12 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { db } from '../../db/db'
 import type { Einsatz, Geraet, GeraetStatus, Pilot } from '../../db/types'
-import { Badge, Button, Card, EmptyState, Modal, PageHeader, Segmented, Stat, TextInput, cx } from '../../components/ui'
+import { Badge, Button, Card, EmptyState, Modal, NurAnsichtHinweis, PageHeader, Segmented, Stat, TextInput, cx } from '../../components/ui'
 import { formatStunden } from '../../lib/calc'
 import { fmtDatum, fmtZeit, fromDateInput, pilotName, toDateInput } from '../../lib/format'
 import { alleFluege, geraetStatistik } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf } from '../auth/kontext'
 import { teileMinuten, zuMinuten } from '../piloten/logic'
 import { useEinsaetze, useMaengel, usePiloten, useWartungen } from './daten'
 import { GeraetAkkus } from './GeraetAkkus'
@@ -29,6 +30,7 @@ export function GeraetDetailPage() {
   const piloten = usePiloten(org?.id)
   const maengel = useMaengel(org?.id)
   const wartungen = useWartungen(org?.id, id)
+  const darfVerwalten = useDarf('geraet.verwalten')
 
   if (!org || geraet === undefined || !einsaetze || !piloten || !maengel || !wartungen) return null
   if (!geraet || geraet.orgId !== org.id)
@@ -73,9 +75,11 @@ export function GeraetDetailPage() {
             <span className="flex-1">
               {offen.length === 1 ? 'Es besteht 1 offener Mangel' : `Es bestehen ${offen.length} offene Mängel`}, das Gerät ist aber als <b>einsatzbereit</b> markiert.
             </span>
-            <Button size="sm" variant="secondary" icon={<Wrench size={16} />} onClick={() => db.geraete.update(geraet.id, { status: 'wartung' })}>
-              Status auf „Wartung“ setzen
-            </Button>
+            {darfVerwalten && (
+              <Button size="sm" variant="secondary" icon={<Wrench size={16} />} onClick={() => db.geraete.update(geraet.id, { status: 'wartung' })}>
+                Status auf „Wartung“ setzen
+              </Button>
+            )}
           </Hinweis>
         )}
         {service === 'ueberfaellig' && <Hinweis farbe="rot">Herstellerservice überfällig (fällig seit {fmtDatum(geraet.naechstesHerstellerservice)}).</Hinweis>}
@@ -88,10 +92,10 @@ export function GeraetDetailPage() {
 
       {tab === 'uebersicht' && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Stammdaten key={geraet.id} geraet={geraet} />
+          <Stammdaten key={geraet.id} geraet={geraet} nurAnsicht={!darfVerwalten} />
           <div className="flex flex-col gap-4">
             <Statistik geraet={geraet} einsaetze={einsaetze} piloten={piloten} />
-            <Loeschen geraet={geraet} verwendet={geraetVerwendet(geraet.id, einsaetze)} />
+            {darfVerwalten && <Loeschen geraet={geraet} verwendet={geraetVerwendet(geraet.id, einsaetze)} />}
           </div>
         </div>
       )}
@@ -111,7 +115,7 @@ export function Hinweis({ farbe, children }: { farbe: 'rot' | 'gelb'; children: 
   )
 }
 
-function Stammdaten({ geraet }: { geraet: Geraet }) {
+function Stammdaten({ geraet, nurAnsicht }: { geraet: Geraet; nurAnsicht: boolean }) {
   const [g, setG] = useState(geraet)
   const [gespeichert, setGespeichert] = useState<Geraet | null>(null)
   const vor = teileMinuten(geraet.vorerfassteMinuten ?? 0)
@@ -140,40 +144,45 @@ function Stammdaten({ geraet }: { geraet: Geraet }) {
 
   return (
     <Card title="Stammdaten">
-      <div className="mb-4">
-        <Segmented label="Status" value={geraet.status} onChange={(s) => db.geraete.update(geraet.id, { status: s })} options={STATUS_OPTIONEN} />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextInput className="sm:col-span-2" label="Name *" value={g.name} onChange={set('name')} />
-        <TextInput label="Hersteller" value={g.hersteller} onChange={set('hersteller')} />
-        <TextInput label="Modell" value={g.modell} onChange={set('modell')} />
-        <TextInput label="Payload" value={g.payload ?? ''} onChange={set('payload')} />
-        <TextInput label="Klasse" value={g.klasse ?? ''} onChange={set('klasse')} placeholder="C0…C6 / Bestandsgerät" />
-        <TextInput label="Registrierungsnummer" value={g.registrierungsnummer ?? ''} onChange={set('registrierungsnummer')} />
-        <TextInput label="Seriennummer" value={g.seriennummer ?? ''} onChange={set('seriennummer')} />
-        <TextInput className="sm:col-span-2" label="Geräteverantwortlicher" value={g.verantwortlicher ?? ''} onChange={set('verantwortlicher')} />
-        <TextInput
-          label="Nächstes Herstellerservice"
-          type="date"
-          value={toDateInput(g.naechstesHerstellerservice)}
-          onChange={(e) => setG({ ...g, naechstesHerstellerservice: fromDateInput(e.target.value) })}
-        />
-      </div>
-      <div className="mt-4 rounded-md border border-dashed border-linie bg-flaeche p-3">
-        <span className="label">
-          Vorerfasste Betriebsstunden <span className="font-normal text-gray-600">(vor Einführung der App)</span>
-        </span>
-        <div className="grid grid-cols-2 gap-3">
-          <TextInput label="Stunden" type="number" min={0} inputMode="numeric" value={vh} onChange={(e) => setVh(e.target.value)} />
-          <TextInput label="Minuten" type="number" min={0} max={59} inputMode="numeric" value={vm} onChange={(e) => setVm(e.target.value)} />
+      {nurAnsicht && <NurAnsichtHinweis className="mb-4" />}
+      <fieldset disabled={nurAnsicht} className="min-w-0">
+        <div className="mb-4">
+          <Segmented label="Status" value={geraet.status} onChange={(s) => db.geraete.update(geraet.id, { status: s })} options={STATUS_OPTIONEN} disabled={nurAnsicht} />
         </div>
-      </div>
-      <div className="mt-4 flex items-center gap-3">
-        <Button disabled={!g.name.trim()} onClick={speichern}>
-          Speichern
-        </Button>
-        {gespeichert === g && <span className="text-sm text-ok">Gespeichert</span>}
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextInput className="sm:col-span-2" label="Name *" value={g.name} onChange={set('name')} />
+          <TextInput label="Hersteller" value={g.hersteller} onChange={set('hersteller')} />
+          <TextInput label="Modell" value={g.modell} onChange={set('modell')} />
+          <TextInput label="Payload" value={g.payload ?? ''} onChange={set('payload')} />
+          <TextInput label="Klasse" value={g.klasse ?? ''} onChange={set('klasse')} placeholder="C0…C6 / Bestandsgerät" />
+          <TextInput label="Registrierungsnummer" value={g.registrierungsnummer ?? ''} onChange={set('registrierungsnummer')} />
+          <TextInput label="Seriennummer" value={g.seriennummer ?? ''} onChange={set('seriennummer')} />
+          <TextInput className="sm:col-span-2" label="Geräteverantwortlicher" value={g.verantwortlicher ?? ''} onChange={set('verantwortlicher')} />
+          <TextInput
+            label="Nächstes Herstellerservice"
+            type="date"
+            value={toDateInput(g.naechstesHerstellerservice)}
+            onChange={(e) => setG({ ...g, naechstesHerstellerservice: fromDateInput(e.target.value) })}
+          />
+        </div>
+        <div className="mt-4 rounded-md border border-dashed border-linie bg-flaeche p-3">
+          <span className="label">
+            Vorerfasste Betriebsstunden <span className="font-normal text-gray-600">(vor Einführung der App)</span>
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput label="Stunden" type="number" min={0} inputMode="numeric" value={vh} onChange={(e) => setVh(e.target.value)} />
+            <TextInput label="Minuten" type="number" min={0} max={59} inputMode="numeric" value={vm} onChange={(e) => setVm(e.target.value)} />
+          </div>
+        </div>
+        {!nurAnsicht && (
+          <div className="mt-4 flex items-center gap-3">
+            <Button disabled={!g.name.trim()} onClick={speichern}>
+              Speichern
+            </Button>
+            {gespeichert === g && <span className="text-sm text-ok">Gespeichert</span>}
+          </div>
+        )}
+      </fieldset>
     </Card>
   )
 }

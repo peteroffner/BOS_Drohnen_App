@@ -3,6 +3,8 @@ import { DatabaseBackup, Download, FlaskConical, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { db } from '../../db/db'
 import { Button, Card, Modal } from '../../components/ui'
+import { CLOUD } from '../../lib/supabase'
+import { useDarf } from '../auth/kontext'
 import { fmtDatumZeit } from '../../lib/format'
 import { useOrg } from '../../lib/useOrg'
 import {
@@ -31,6 +33,8 @@ export function BackupCard() {
   const [vorschau, setVorschau] = useState<{ datei: string; daten: BackupDatei; anzahl: Record<string, number> } | null>(null)
   const [demoFrage, setDemoFrage] = useState(false)
   const dateiRef = useRef<HTMLInputElement>(null)
+  // Cloud-Modus: Wiederherstellen/Demodaten überschreiben die Daten aller Mitglieder → nur Administrator
+  const darfWiederherstellen = useDarf('daten.wiederherstellen')
 
   const tage = tageSeit(letztes)
   const erinnern = tage === undefined || tage > BACKUP_ERINNERUNG_TAGE
@@ -93,8 +97,9 @@ export function BackupCard() {
     <Card title="Datensicherung">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-gray-600">
-          Alle Daten liegen nur auf diesem Gerät (im Browser). Erstellen Sie regelmäßig ein Backup und bewahren Sie die Datei sicher auf – sie enthält personenbezogene
-          Daten.
+          {CLOUD
+            ? 'Die Daten werden mit dem Server synchronisiert. Ein zusätzliches Backup als Datei ist trotzdem sinnvoll – bitte sicher aufbewahren, es enthält personenbezogene Daten.'
+            : 'Alle Daten liegen nur auf diesem Gerät (im Browser). Erstellen Sie regelmäßig ein Backup und bewahren Sie die Datei sicher auf – sie enthält personenbezogene Daten.'}
         </p>
         <div className={erinnern ? 'rounded-md border border-amber-200 bg-warn-bg p-3 text-sm font-semibold text-warn' : 'text-sm'}>
           {letztes ? (
@@ -111,11 +116,13 @@ export function BackupCard() {
           <Button icon={<Download size={20} />} onClick={herunterladen} disabled={laeuft}>
             Backup herunterladen
           </Button>
-          <Button variant="secondary" icon={<Upload size={20} />} onClick={() => dateiRef.current?.click()} disabled={laeuft}>
-            Backup wiederherstellen
-          </Button>
+          {darfWiederherstellen && (
+            <Button variant="secondary" icon={<Upload size={20} />} onClick={() => dateiRef.current?.click()} disabled={laeuft}>
+              Backup wiederherstellen
+            </Button>
+          )}
           <input ref={dateiRef} type="file" accept="application/json,.json" className="hidden" aria-label="Backup-Datei wählen" onChange={(e) => dateiGewaehlt(e.target.files?.[0])} />
-          {datenAnzahl === 0 && (
+          {datenAnzahl === 0 && darfWiederherstellen && (
             <Button variant="ghost" icon={<FlaskConical size={20} />} onClick={() => setDemoFrage(true)} disabled={laeuft}>
               Demodaten laden
             </Button>
@@ -162,6 +169,7 @@ export function BackupCard() {
             <p className="rounded-md bg-fehler-bg p-3 text-sm font-semibold text-fehler">
               Achtung: Alle derzeit auf diesem Gerät gespeicherten Daten werden gelöscht und durch das Backup ersetzt. Dies kann nicht rückgängig gemacht werden.
             </p>
+            {CLOUD && <CloudWarnung />}
           </div>
         )}
       </Modal>
@@ -185,7 +193,16 @@ export function BackupCard() {
           Legt 3 Beispiel-Piloten, 2 Geräte („Hornisse 1“, „Hornisse 2“), 8 abgeschlossene Einsätze/Trainings der letzten Monate, Wartungsprüfungen und Mängel an – zum
           Ausprobieren und für Präsentationen. Die Daten sind fiktiv und können nicht automatisch wieder entfernt werden.
         </p>
+        {CLOUD && <CloudWarnung text="Die Demodaten werden in die Cloud übertragen und sind für alle Mitglieder der Organisation sichtbar." />}
       </Modal>
     </Card>
+  )
+}
+
+function CloudWarnung({ text }: { text?: string }) {
+  return (
+    <p role="alert" className="mt-3 rounded-md border-2 border-fehler bg-fehler-bg p-3 text-sm font-semibold text-fehler">
+      {text ?? 'Cloud-Modus: Die Änderungen werden mit dem Server synchronisiert und überschreiben die Daten der Organisation für ALLE Mitglieder.'}
+    </p>
   )
 }

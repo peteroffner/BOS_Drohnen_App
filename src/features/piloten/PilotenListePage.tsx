@@ -8,6 +8,7 @@ import { formatStunden } from '../../lib/calc'
 import { fmtDatum, pilotName } from '../../lib/format'
 import { pilotStatistik, pilotStatus } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf } from '../auth/kontext'
 import { useEinsaetze, usePiloten } from '../geraete/daten'
 import { pilotPasst, sortierePiloten, type PilotSortierung, type PilotZeile } from './logic'
 
@@ -26,6 +27,7 @@ export function PilotenListePage() {
   const [suche, setSuche] = useState('')
   const [sortierung, setSortierung] = useState<PilotSortierung>('name')
   const [neu, setNeu] = useState(false)
+  const darfVerwalten = useDarf('pilot.verwalten')
 
   const zeilen = useMemo<PilotZeile[]>(() => {
     if (!org || !piloten || !einsaetze) return []
@@ -52,9 +54,11 @@ export function PilotenListePage() {
         title="Piloten"
         subtitle={`${aktive.length} aktiv · ${gruen} einsatzbereit`}
         actions={
-          <Button icon={<Plus size={20} />} onClick={() => setNeu(true)}>
-            Pilot anlegen
-          </Button>
+          darfVerwalten && (
+            <Button icon={<Plus size={20} />} onClick={() => setNeu(true)}>
+              Pilot anlegen
+            </Button>
+          )
         }
       />
 
@@ -63,7 +67,7 @@ export function PilotenListePage() {
           icon={<Users size={40} />}
           title="Noch keine Piloten erfasst"
           text="Lege die Drohnenpiloten deiner Feuerwehr an. Flugstunden werden danach automatisch aus dem Flugbuch berechnet."
-          action={<Button onClick={() => setNeu(true)}>Pilot anlegen</Button>}
+          action={darfVerwalten && <Button onClick={() => setNeu(true)}>Pilot anlegen</Button>}
         />
       ) : (
         <>

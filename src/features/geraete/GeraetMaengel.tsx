@@ -4,12 +4,15 @@ import { Link } from 'react-router-dom'
 import { db, jetzt, neueId } from '../../db/db'
 import type { Einsatz, Geraet, Mangel } from '../../db/types'
 import { Badge, Button, Card, Checkbox, EmptyState, Modal, TextArea, TextInput } from '../../components/ui'
+import { useDarf } from '../auth/kontext'
 import { fmtDatum, fromDateInput, toDateInput } from '../../lib/format'
 
 const QUELLE_LABEL: Record<Mangel['quelle'], string> = { nachkontrolle: 'Nachkontrolle', wartung: 'Wartung', manuell: 'manuell' }
 
 export function GeraetMaengel({ geraet, maengel, einsaetze }: { geraet: Geraet; maengel: Mangel[]; einsaetze: Einsatz[] }) {
   const [neu, setNeu] = useState(false)
+  const darfAnlegen = useDarf('mangel.anlegen')
+  const darfBeheben = useDarf('mangel.beheben')
   const [beheben, setBeheben] = useState<Mangel | null>(null)
   const [behobeneZeigen, setBehobeneZeigen] = useState(false)
   const sortiert = [...maengel].sort((a, b) => b.erstelltAm.localeCompare(a.erstelltAm))
@@ -21,9 +24,11 @@ export function GeraetMaengel({ geraet, maengel, einsaetze }: { geraet: Geraet; 
       <Card
         title={`Offene Mängel (${offen.length})`}
         actions={
-          <Button size="sm" icon={<Plus size={16} />} onClick={() => setNeu(true)}>
-            Mangel erfassen
-          </Button>
+          darfAnlegen && (
+            <Button size="sm" icon={<Plus size={16} />} onClick={() => setNeu(true)}>
+              Mangel erfassen
+            </Button>
+          )
         }
       >
         {offen.length === 0 ? (
@@ -32,9 +37,11 @@ export function GeraetMaengel({ geraet, maengel, einsaetze }: { geraet: Geraet; 
           <ul className="divide-y divide-linie">
             {offen.map((m) => (
               <MangelZeile key={m.id} m={m} einsaetze={einsaetze}>
-                <Button size="sm" variant="secondary" icon={<CircleCheck size={16} />} onClick={() => setBeheben(m)}>
-                  Als behoben markieren
-                </Button>
+                {darfBeheben && (
+                  <Button size="sm" variant="secondary" icon={<CircleCheck size={16} />} onClick={() => setBeheben(m)}>
+                    Als behoben markieren
+                  </Button>
+                )}
               </MangelZeile>
             ))}
           </ul>

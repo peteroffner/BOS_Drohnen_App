@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { EinsatzArt, EinsatzStatus } from '../../db/types'
 import { EmptyState, PageHeader, Select } from '../../components/ui'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf } from '../auth/kontext'
 import { EinsatzZeile } from './components/EinsatzZeile'
 import { useEinsaetze } from './data'
 import { ART_OPTIONEN, filtereEinsaetze, STATUS_OPTIONEN } from './logic/einsatz'
@@ -11,6 +12,7 @@ import { ART_OPTIONEN, filtereEinsaetze, STATUS_OPTIONEN } from './logic/einsatz
 export function EinsatzListePage() {
   const org = useOrg()
   const einsaetze = useEinsaetze(org?.id ?? '')
+  const darfAnlegen = useDarf('einsatz.anlegen')
   const [art, setArt] = useState<EinsatzArt | ''>('')
   const [status, setStatus] = useState<EinsatzStatus | ''>('')
   const [jahr, setJahr] = useState<number | ''>('')
@@ -26,9 +28,11 @@ export function EinsatzListePage() {
         title="Einsätze"
         subtitle={`${liste.length} von ${einsaetze.length}`}
         actions={
-          <Link to="/einsaetze/neu" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-rot-700 px-4 font-semibold text-white hover:bg-rot-800">
-            <Plus size={20} /> Neuer Einsatz
-          </Link>
+          darfAnlegen && (
+            <Link to="/einsaetze/neu" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-rot-700 px-4 font-semibold text-white hover:bg-rot-800">
+              <Plus size={20} /> Neuer Einsatz
+            </Link>
+          )
         }
       />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

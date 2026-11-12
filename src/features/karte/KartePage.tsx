@@ -9,6 +9,7 @@ import { Badge, Button, Card, Checkbox, PageHeader, Select, TextInput } from '..
 import { MAX_FLUGHOEHE_M, sicherheitsabstaende } from '../../lib/calc'
 import { fmtDatum } from '../../lib/format'
 import { useOrgId } from '../../lib/useOrg'
+import { useEinsatzRechte } from '../auth/kontext'
 import { DRONESPACE_URL, fmtKoordinaten, fmtMeter, istPosition, OESTERREICH_MITTE, OESTERREICH_ZOOM, schutzkreise } from './geo'
 import { EigenePositionLayer, GroesseBeobachten, OsmKacheln, SchutzkreiseLayer, ZoomAuf } from './KartenLayer'
 import { KartenLegende } from './KartenLegende'
@@ -70,6 +71,7 @@ export function KartePage() {
   const abst = sicherheitsabstaende(hoehe)
   const kreise = schutzkreise(hoehe, mitFlugplatz)
   const groessterKreis = kreise[0]?.radiusM ?? 100
+  const rechte = useEinsatzRechte(einsatz)
   const einsatzOffen = !!einsatz && einsatz.status !== 'abgeschlossen'
   const positionImEinsatz = einsatz?.position
   const unveraendert = !!start && !!positionImEinsatz && start.lat === positionImEinsatz.lat && start.lng === positionImEinsatz.lng
@@ -106,7 +108,7 @@ export function KartePage() {
   }
 
   const speichern = async () => {
-    if (!einsatz || !start || !einsatzOffen) return
+    if (!einsatz || !start || !rechte.bearbeiten) return
     await db.einsaetze.update(einsatz.id, { position: start, geaendertAm: jetzt() })
     setGespeichert(start)
   }
@@ -225,7 +227,7 @@ export function KartePage() {
                       Zum Einsatz
                     </Link>
                   </div>
-                  {einsatzOffen && (
+                  {rechte.bearbeiten && (
                     <Button icon={<Save size={20} />} disabled={!start || unveraendert} onClick={speichern}>
                       Startpunkt im Einsatz speichern
                     </Button>

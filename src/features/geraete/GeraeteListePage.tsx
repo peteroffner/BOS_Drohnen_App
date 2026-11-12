@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState, Modal, PageHeader, TextInput } from '../../c
 import { formatStunden } from '../../lib/calc'
 import { geraetStatistik } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
+import { useDarf } from '../auth/kontext'
 import { useEinsaetze, useGeraete, useMaengel, useWartungen } from './daten'
 import { MONATE, offeneMaengel, serviceFaelligkeit, STATUS_FARBE, STATUS_LABEL, wartungImMonatErledigt } from './logic'
 
@@ -17,6 +18,7 @@ export function GeraeteListePage() {
   const maengel = useMaengel(org?.id)
   const wartungen = useWartungen(org?.id)
   const [neu, setNeu] = useState(false)
+  const darfVerwalten = useDarf('geraet.verwalten')
   const [heute] = useState(() => new Date())
 
   if (!org || !geraete || !einsaetze || !maengel || !wartungen) return null
@@ -27,9 +29,11 @@ export function GeraeteListePage() {
         title="Geräte"
         subtitle={`${geraete.filter((g) => g.status === 'einsatzbereit').length} von ${geraete.length} einsatzbereit · Wartung ${MONATE[heute.getMonth()]} ${heute.getFullYear()}`}
         actions={
-          <Button icon={<Plus size={20} />} onClick={() => setNeu(true)}>
-            Gerät anlegen
-          </Button>
+          darfVerwalten && (
+            <Button icon={<Plus size={20} />} onClick={() => setNeu(true)}>
+              Gerät anlegen
+            </Button>
+          )
         }
       />
       {geraete.length === 0 ? (
@@ -37,7 +41,7 @@ export function GeraeteListePage() {
           icon={<Plane size={40} />}
           title="Noch keine Geräte erfasst"
           text="Lege die Drohnen deiner Feuerwehr mit Akkus an. Betriebsstunden und Akkuzyklen werden automatisch aus den Flügen berechnet."
-          action={<Button onClick={() => setNeu(true)}>Gerät anlegen</Button>}
+          action={darfVerwalten && <Button onClick={() => setNeu(true)}>Gerät anlegen</Button>}
         />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

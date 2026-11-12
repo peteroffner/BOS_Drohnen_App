@@ -17,7 +17,7 @@ export function GueltigkeitBadge({ g }: { g: Gueltigkeit }) {
   return <Badge>unbefristet</Badge>
 }
 
-export function PilotQualifikationen({ pilot, warnTage, pflicht }: { pilot: Pilot; warnTage: number; pflicht: QualifikationTyp[] }) {
+export function PilotQualifikationen({ pilot, warnTage, pflicht, nurAnsicht = false }: { pilot: Pilot; warnTage: number; pflicht: QualifikationTyp[]; nurAnsicht?: boolean }) {
   const [bearbeiten, setBearbeiten] = useState<Qualifikation | null>(null)
   const liste = [...pilot.qualifikationen].sort((a, b) => TYP_OPTIONEN.findIndex((o) => o.value === a.typ) - TYP_OPTIONEN.findIndex((o) => o.value === b.typ))
   const fehlend = pflicht.filter((t) => !pilot.qualifikationen.some((q) => q.typ === t))
@@ -36,7 +36,7 @@ export function PilotQualifikationen({ pilot, warnTage, pflicht }: { pilot: Pilo
     <Card
       title="Qualifikationen"
       actions={
-        <Button size="sm" icon={<Plus size={16} />} onClick={() => setBearbeiten({ id: neueId(), typ: fehlend[0] ?? 'A1_A3' })}>
+        !nurAnsicht && <Button size="sm" icon={<Plus size={16} />} onClick={() => setBearbeiten({ id: neueId(), typ: fehlend[0] ?? 'A1_A3' })}>
           Hinzufügen
         </Button>
       }
@@ -72,9 +72,9 @@ export function PilotQualifikationen({ pilot, warnTage, pflicht }: { pilot: Pilo
                   </div>
                 )}
               </div>
-              <Button variant="secondary" size="sm" icon={<Pencil size={16} />} onClick={() => setBearbeiten(q)} aria-label={`${QUALIFIKATION_LABEL[q.typ]} bearbeiten`}>
+              {!nurAnsicht && <Button variant="secondary" size="sm" icon={<Pencil size={16} />} onClick={() => setBearbeiten(q)} aria-label={`${QUALIFIKATION_LABEL[q.typ]} bearbeiten`}>
                 Bearbeiten
-              </Button>
+              </Button>}
             </li>
           ))}
         </ul>
