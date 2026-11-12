@@ -148,9 +148,11 @@ Flugstunden, Akkuzyklen und Gerätestunden werden **berechnet**, nicht doppelt g
    - Agent C: Karte + Auswertung/Dashboard + Exporte
 3. **Agent „Review/Test“**: Code-Review, Tests, Durchklicken mit Playwright, Screenshots
 
-## 8. Offene Fragen
-1. PWA ok, oder muss es von Anfang an eine native App (App Store) sein?
-2. Phase 1 nur lokal auf einem Gerät, oder gleich mit Login/Cloud für mehrere Personen?
-3. Welche Qualifikationen / Freigabe-Regeln gelten bei euch als Einsatzpilot (Mindestflugpraxis)?
-4. Gibt es ein Corporate Design (Farben/Logo BFV / LFV) das verwendet werden soll/darf?
-5. Geozonen: Kontakt zu Austro Control für Datenzugang vorhanden?
+## 8. Entscheidungen (12.11.2026)
+- Plattform: **PWA** (offline-fähig, später ggf. mit Capacitor als App)
+- Daten Phase 1: **lokal (IndexedDB) + Backup per Export/Import**, Login/Cloud in Phase 2
+- Einsatzpilot-Freigabe: **konfigurierbar** (Pflicht-Qualifikationen + Mindestpraxis, Standard 3 Flüge / 90 Tage → Ampel)
+
+## 9. Offene Fragen
+1. Gibt es ein Corporate Design (Farben/Logo BFV / LFV) das verwendet werden soll/darf?
+2. Geozonen: Kontakt zu Austro Control für Datenzugang vorhanden?
