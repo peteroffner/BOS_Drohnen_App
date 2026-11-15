@@ -3,6 +3,8 @@ import { sicherheitsabstaende } from '../../lib/calc'
 
 /** Offizielle Luftraumkarte von Austro Control (verbindliche Prüfung). */
 export const DRONESPACE_URL = 'https://map.dronespace.at/'
+/** Private, unverbindliche Übersichtskarte (W4 Sky Media) – nur als Link, nicht eingebettet */
+export const DROHNENKARTE_URL = 'https://drohnenkarte.at/'
 
 /** Mindestabstand zu Flugplätzen ohne Sicherheitszone (Checkliste v9, Punkt 11). */
 export const FLUGPLATZ_RADIUS_M = 2500

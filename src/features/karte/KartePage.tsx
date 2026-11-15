@@ -10,7 +10,7 @@ import { MAX_FLUGHOEHE_M, sicherheitsabstaende } from '../../lib/calc'
 import { fmtDatum } from '../../lib/format'
 import { useOrgId } from '../../lib/useOrg'
 import { useEinsatzRechte } from '../auth/kontext'
-import { DRONESPACE_URL, fmtKoordinaten, fmtMeter, istPosition, OESTERREICH_MITTE, OESTERREICH_ZOOM, schutzkreise } from './geo'
+import { DROHNENKARTE_URL, DRONESPACE_URL, fmtKoordinaten, fmtMeter, istPosition, OESTERREICH_MITTE, OESTERREICH_ZOOM, schutzkreise } from './geo'
 import { EigenePositionLayer, GroesseBeobachten, OsmKacheln, SchutzkreiseLayer, ZoomAuf } from './KartenLayer'
 import { KartenLegende } from './KartenLegende'
 
@@ -26,6 +26,20 @@ export function DronespaceButton({ className }: { className?: string }) {
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-rot-700 px-4 font-semibold text-white hover:bg-rot-800 ${className ?? ''}`}
     >
       <ExternalLink size={20} /> Dronespace (Austro Control) öffnen
+    </a>
+  )
+}
+
+export function DrohnenkarteButton({ className }: { className?: string }) {
+  return (
+    <a
+      href={DROHNENKARTE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Unverbindliche Übersichtskarte – rechtsverbindlich ist nur Dronespace"
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-linie bg-white px-4 font-semibold text-anthrazit hover:bg-flaeche ${className ?? ''}`}
+    >
+      <ExternalLink size={20} /> Drohnenkarte.at öffnen
     </a>
   )
 }
@@ -120,13 +134,13 @@ export function KartePage() {
 
   return (
     <>
-      <PageHeader title="Karte" subtitle="Standort, Startpunkt und Sicherheitsabstände" actions={<div className="hidden sm:block"><DronespaceButton /></div>} />
+      <PageHeader title="Karte" subtitle="Standort, Startpunkt und Sicherheitsabstände" actions={<div className="hidden gap-2 sm:flex"><DrohnenkarteButton /><DronespaceButton /></div>} />
 
       <div role="note" className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-warn-bg p-3 text-warn">
         <TriangleAlert size={22} className="mt-0.5 shrink-0" />
         <p className="text-sm font-semibold">Verbindliche Luftraumprüfung (Geozonen, NOTAM) in Dronespace – diese Karte ersetzt sie nicht.</p>
       </div>
-      <div className="mb-3 sm:hidden"><DronespaceButton className="w-full" /></div>
+      <div className="mb-3 flex flex-col gap-2 sm:hidden"><DronespaceButton className="w-full" /><DrohnenkarteButton className="w-full" /></div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="relative isolate z-0 h-[58dvh] min-h-[320px] overflow-hidden rounded-lg border border-linie lg:h-[calc(100dvh-13rem)] lg:min-h-[480px]">
