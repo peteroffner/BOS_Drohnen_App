@@ -8,6 +8,15 @@ describe('Schutzkreise', () => {
     expect(k.find((x) => x.id === 'grb')?.radiusM).toBe(110)
     expect(k.find((x) => x.id === 'menschen')?.radiusM).toBe(240)
   })
+  it('OPEN: Kreise je Unterkategorie', () => {
+    expect(schutzkreise(100, false, 'A1')).toEqual([])
+    expect(schutzkreise(20, false, 'A2').map((x) => [x.id, x.radiusM])).toEqual([['unbeteiligte', 30]])
+    expect(schutzkreise(80, false, 'A2').map((x) => [x.id, x.radiusM])).toEqual([['unbeteiligte', 80]])
+    expect(schutzkreise(50, false, 'A3').map((x) => [x.id, x.radiusM])).toEqual([
+      ['gebiete', 150],
+      ['unbeteiligte', 50],
+    ])
+  })
   it('optional 2,5-km-Kreis, ohne Flughöhe nur dieser', () => {
     expect(schutzkreise(50, true)[0]).toMatchObject({ id: 'flugplatz', radiusM: 2500 })
     expect(schutzkreise(0, true).map((x) => x.id)).toEqual(['flugplatz'])

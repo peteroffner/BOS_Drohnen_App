@@ -20,7 +20,7 @@ export function KarteCard({ einsatz }: { einsatz: Einsatz }) {
       }
     >
       <Suspense fallback={<div className="h-[260px] rounded-lg bg-flaeche" />}>
-        <EinsatzKarte position={einsatz.position} flughoeheM={einsatz.geplanteFlughoeheM} hoehe={260} mitFlugplatz />
+        <EinsatzKarte position={einsatz.position} flughoeheM={einsatz.geplanteFlughoeheM} hoehe={260} mitFlugplatz rechtsgrundlage={einsatz.rechtsgrundlage} openUnterkategorie={einsatz.openUnterkategorie} />
       </Suspense>
     </Card>
   )

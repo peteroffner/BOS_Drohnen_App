@@ -21,7 +21,7 @@ export function SchutzkreiseLayer({ start, kreise }: { start: Position; kreise: 
           pathOptions={{
             className: k.pfadKlasse,
             weight: 2,
-            fillOpacity: k.id === 'grb' ? 0.2 : 0.08,
+            fillOpacity: k.gestrichelt ? 0.08 : 0.2,
             dashArray: k.gestrichelt ? '6 6' : undefined,
           }}
         >

@@ -1,5 +1,5 @@
 import type { Position } from '../../db/types'
-import { sicherheitsabstaende } from '../../lib/calc'
+import { abstandsRegel, type AbstandsModus } from '../../lib/calc'
 
 /** Offizielle Luftraumkarte von Austro Control (verbindliche Prüfung). */
 export const DRONESPACE_URL = 'https://map.dronespace.at/'
@@ -16,7 +16,8 @@ export const OESTERREICH_ZOOM = 7
 export const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende'
 
-export type SchutzkreisId = 'grb' | 'menschen' | 'flugplatz'
+/** 'flugplatz' oder die ID eines Abstandswerts aus abstandsRegel (z. B. 'grb', 'menschen', 'unbeteiligte', 'gebiete') */
+export type SchutzkreisId = string
 
 export interface Schutzkreis {
   id: SchutzkreisId
@@ -30,12 +31,12 @@ export interface Schutzkreis {
 }
 
 /**
- * Kreise um den Startpunkt nach Checkliste v9: Ground Risk Buffer,
- * Abstand Menschenansammlungen und optional 2,5 km Flugplatz-Abstand.
+ * Kreise um den Startpunkt, passend zur Rechtsgrundlage (siehe abstandsRegel):
+ * Bescheid/SPECIFIC → Ground Risk Buffer + Abstand Menschenansammlungen,
+ * OPEN A2/A3 → feste OPEN-Abstände; optional 2,5 km Flugplatz-Abstand.
  * Reihenfolge: groß → klein (damit kleine Kreise oben liegen).
  */
-export function schutzkreise(flughoeheM: number, mitFlugplatz: boolean): Schutzkreis[] {
-  const s = sicherheitsabstaende(flughoeheM)
+export function schutzkreise(flughoeheM: number, mitFlugplatz: boolean, modus: AbstandsModus = 'formular'): Schutzkreis[] {
   const out: Schutzkreis[] = []
   if (mitFlugplatz) {
     out.push({
@@ -48,24 +49,19 @@ export function schutzkreise(flughoeheM: number, mitFlugplatz: boolean): Schutzk
       gestrichelt: true,
     })
   }
-  if (s.flughoehe > 0) {
+  const kreise = abstandsRegel(modus, flughoeheM)
+    .werte.filter((w) => w.kreis && w.meter > 0)
+    .sort((a, b) => b.meter - a.meter)
+  for (const w of kreise) {
+    const gelb = w.kreis === 'gelb'
     out.push({
-      id: 'menschen',
-      label: 'Abstand Menschenansammlungen',
-      beschreibung: `GRB + CV + 120 m`,
-      radiusM: s.abstandMenschenansammlung,
-      pfadKlasse: 'stroke-warn fill-warn',
-      legendeKlasse: 'border-warn bg-warn-bg border-dashed',
-      gestrichelt: true,
-    })
-    out.push({
-      id: 'grb',
-      label: 'Ground Risk Buffer',
-      beschreibung: `Flughöhe + Contingency Volume (${fmtMeter(s.contingencyVolume)})`,
-      radiusM: s.groundRiskBuffer,
-      pfadKlasse: 'stroke-rot-700 fill-rot-700',
-      legendeKlasse: 'border-rot-700 bg-rot-100',
-      gestrichelt: false,
+      id: w.id,
+      label: w.label,
+      beschreibung: w.sub,
+      radiusM: w.meter,
+      pfadKlasse: gelb ? 'stroke-warn fill-warn' : 'stroke-rot-700 fill-rot-700',
+      legendeKlasse: gelb ? 'border-warn bg-warn-bg border-dashed' : 'border-rot-700 bg-rot-100',
+      gestrichelt: gelb,
     })
   }
   return out

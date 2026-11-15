@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ChecklistItem, ChecklistVorlage, Einsatz, Geraet, Organisation, Pilot } from '../../../db/types'
-import { dauerMinuten, sicherheitsabstaende } from '../../../lib/calc'
+import { abstandsKurztext, abstandsModus, abstandsRegel, dauerMinuten, sicherheitsabstaende } from '../../../lib/calc'
 import { fmtDatum, fmtDatumZeit, fmtZeit, pilotName } from '../../../lib/format'
 import { antwortText, findeItem, gewaehlteOptionen, itemErledigt } from '../logic/checkliste'
 import { akkuNummer, ART_LABEL, EINSATZENDE_ZEILEN, EREIGNIS_TYP_LABEL, rechtsgrundlageText, rolleName, sortierteEreignisse, STATUS_LABEL } from '../logic/einsatz'
@@ -24,6 +24,9 @@ export function EinsatzProtokoll({
   geraete: Geraet[]
 }) {
   const s = e.geplanteFlughoeheM ? sicherheitsabstaende(e.geplanteFlughoeheM) : undefined
+  // Bei Kategorie OPEN zusätzlich die dort geltenden Abstände ausweisen
+  const modus = abstandsModus(e.rechtsgrundlage, e.openUnterkategorie)
+  const openRegel = modus !== 'formular' && modus !== 'open_offen' ? abstandsRegel(modus, e.geplanteFlughoeheM ?? 0) : undefined
   const einsatzGeraete = geraete.filter((g) => e.geraetIds.includes(g.id))
   const pName = (id: string) => {
     const p = piloten.find((x) => x.id === id)
@@ -75,6 +78,7 @@ export function EinsatzProtokoll({
                   ['Abstand Menschenansammlung', `${s.abstandMenschenansammlung} m`],
                 ] as [string, string][])
               : []),
+            ...(openRegel ? ([[`Abstände ${openRegel.titel}`, abstandsKurztext(openRegel)]] as [string, string][]) : []),
             ['Gesamt-Einsatzleiter', rolleName(e.rollen.gesamtEinsatzleiter)],
             ['Drohnen-Teamleiter', rolleName(e.rollen.teamleiter)],
             ['Drohnen-Abschnittsleiter', rolleName(e.rollen.abschnittsleiter)],

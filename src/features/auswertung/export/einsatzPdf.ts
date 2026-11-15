@@ -1,7 +1,7 @@
 import type { Column, Content, ContentText, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces'
 import { db } from '../../../db/db'
 import type { ChecklistAntwort, ChecklistItem, ChecklistSektion, ChecklistVorlage, Einsatz, Geraet, Organisation, Pilot, Rolle } from '../../../db/types'
-import { dauerMinuten, formatStunden, sicherheitsabstaende } from '../../../lib/calc'
+import { abstandsKurztext, abstandsModus, abstandsRegel, dauerMinuten, formatStunden, sicherheitsabstaende } from '../../../lib/calc'
 import { fmtDatum, fmtDatumZeit, fmtZeit, pilotName } from '../../../lib/format'
 import { alleItems, VORLAGEN } from '../../../templates/checkliste_v9'
 import { dateiSicher } from './download'
@@ -173,6 +173,9 @@ export function einsatzPdfDoc({ einsatz: e, org, piloten, geraete, vorlage }: Ei
   const uebersteuert = new Set((e.uebersteuerungen ?? []).map((u) => u.itemId))
   const rolle = (r?: Rolle) => rollenName(r, piloten)
   const abst = sicherheitsabstaende(e.geplanteFlughoeheM ?? 0)
+  // Bei Kategorie OPEN zusätzlich die dort geltenden Abstände ausweisen
+  const modus = abstandsModus(e.rechtsgrundlage, e.openUnterkategorie)
+  const openRegel = modus !== 'formular' && modus !== 'open_offen' ? abstandsRegel(modus, e.geplanteFlughoeheM ?? 0) : undefined
   const m = (x: number) => `${x.toLocaleString('de-AT')} m`
   const inhalt: Content[] = []
 
@@ -245,6 +248,7 @@ export function einsatzPdfDoc({ einsatz: e, org, piloten, geraete, vorlage }: Ei
       ['Ground Risk Buffer (Höhe + CV)', e.geplanteFlughoeheM != null ? m(abst.groundRiskBuffer) : undefined],
       ['Abstand Menschenansammlungen (GRB + CV + 120 m)', e.geplanteFlughoeheM != null ? m(abst.abstandMenschenansammlung) : undefined],
       ['Abstand unbeteiligte Personen (1:1-Regel)', e.geplanteFlughoeheM != null ? m(abst.abstandUnbeteiligte) : undefined],
+      ...(openRegel ? ([[`Abstände ${openRegel.titel}`, abstandsKurztext(openRegel)]] as [string, string][]) : []),
     ]),
   )
 

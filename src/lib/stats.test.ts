@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Einsatz, FreigabeRegeln, Pilot } from '../db/types'
-import { dauerMinuten, formatStunden, sicherheitsabstaende } from './calc'
+import { abstandsModus, abstandsRegel, dauerMinuten, formatStunden, sicherheitsabstaende } from './calc'
 import { pilotStatistik, pilotStatus } from './stats'
 
 const heute = new Date('2026-11-12T12:00:00Z')
@@ -52,6 +52,33 @@ describe('Sicherheitsabstände (Checkliste v9)', () => {
     expect(s.abstandMenschenansammlung).toBe(240)
     expect(s.hoeheUeberschritten).toBe(false)
     expect(sicherheitsabstaende(121).hoeheUeberschritten).toBe(true)
+  })
+})
+
+describe('Abstände je Rechtsgrundlage', () => {
+  it('wählt den Modus aus Rechtsgrundlage und Unterkategorie', () => {
+    expect(abstandsModus(undefined)).toBe('formular')
+    expect(abstandsModus('bescheid')).toBe('formular')
+    expect(abstandsModus('specific_bos', 'A2')).toBe('formular')
+    expect(abstandsModus('open')).toBe('open_offen')
+    expect(abstandsModus('open', 'A2')).toBe('A2')
+  })
+  it('Formular-Rechnung bei Bescheid/SPECIFIC', () => {
+    const r = abstandsRegel('formular', 100)
+    expect(r.werte.map((w) => [w.id, w.meter])).toEqual([
+      ['cv', 10],
+      ['grb', 110],
+      ['menschen', 240],
+    ])
+  })
+  it('OPEN A2: 30 m bzw. Flughöhe (1:1), Langsamflug 5 m', () => {
+    expect(abstandsRegel('A2', 20).werte.map((w) => w.meter)).toEqual([30, 5])
+    expect(abstandsRegel('A2', 90).werte.map((w) => w.meter)).toEqual([90, 5])
+  })
+  it('OPEN A3: 150 m zu Gebieten; A1 ohne Abstandswerte', () => {
+    expect(abstandsRegel('A3', 50).werte[0]).toMatchObject({ id: 'gebiete', meter: 150 })
+    expect(abstandsRegel('A1', 50).werte).toEqual([])
+    expect(abstandsRegel('A2', 130).hoeheUeberschritten).toBe(true)
   })
 })
 

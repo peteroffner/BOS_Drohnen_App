@@ -195,7 +195,7 @@ export function EinsatzDatenForm({ start, org, piloten, geraete, maengel, einsae
             hint="Maximal 120 m über Grund"
             className="sm:max-w-xs"
           />
-          <Sicherheitsabstaende flughoehe={hoehe} />
+          <Sicherheitsabstaende flughoehe={hoehe} rechtsgrundlage={e.rechtsgrundlage} openUnterkategorie={e.openUnterkategorie} />
         </div>
       </Card>
 

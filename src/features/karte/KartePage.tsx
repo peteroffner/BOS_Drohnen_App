@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { db, jetzt } from '../../db/db'
 import type { Einsatz, Position } from '../../db/types'
 import { Badge, Button, Card, Checkbox, PageHeader, Select, TextInput } from '../../components/ui'
-import { MAX_FLUGHOEHE_M, sicherheitsabstaende } from '../../lib/calc'
+import { ABSTAND_HINWEIS_OHNE_GEWAEHR, abstandsModus, abstandsRegel, MAX_FLUGHOEHE_M, type AbstandsModus } from '../../lib/calc'
 import { fmtDatum } from '../../lib/format'
 import { useOrgId } from '../../lib/useOrg'
 import { useEinsatzRechte } from '../auth/kontext'
@@ -65,6 +65,7 @@ export function KartePage() {
   const [start, setStart] = useState<Position | undefined>()
   const [hoeheText, setHoeheText] = useState('50')
   const [mitFlugplatz, setMitFlugplatz] = useState(false)
+  const [modus, setModus] = useState<AbstandsModus>('formular')
   const [eigene, setEigene] = useState<Position | undefined>()
   const [geo, setGeo] = useState<GeoStatus>({ art: 'leer' })
   const [zoomZiel, setZoomZiel] = useState('')
@@ -75,6 +76,7 @@ export function KartePage() {
   if (einsatz && einsatz.orgId === orgId && geladenFuer !== einsatz.id) {
     setGeladenFuer(einsatz.id)
     if (einsatz.geplanteFlughoeheM != null) setHoeheText(String(einsatz.geplanteFlughoeheM))
+    setModus(abstandsModus(einsatz.rechtsgrundlage, einsatz.openUnterkategorie))
     if (istPosition(einsatz.position)) {
       setStart(einsatz.position)
       setZoomZiel(`einsatz:${einsatz.id}`)
@@ -82,8 +84,8 @@ export function KartePage() {
   }
 
   const hoehe = Math.max(0, parseFloat(hoeheText.replace(',', '.')) || 0)
-  const abst = sicherheitsabstaende(hoehe)
-  const kreise = schutzkreise(hoehe, mitFlugplatz)
+  const regel = abstandsRegel(modus, hoehe)
+  const kreise = schutzkreise(hoehe, mitFlugplatz, modus)
   const groessterKreis = kreise[0]?.radiusM ?? 100
   const rechte = useEinsatzRechte(einsatz)
   const einsatzOffen = !!einsatz && einsatz.status !== 'abgeschlossen'
@@ -210,6 +212,18 @@ export function KartePage() {
 
           <Card title="Sicherheitsabstände">
             <div className="flex flex-col gap-3">
+              <Select
+                label="Rechtsgrundlage"
+                value={modus === 'open_offen' ? 'formular' : modus}
+                onChange={(e) => setModus(e.target.value as AbstandsModus)}
+                options={[
+                  { value: 'formular', label: 'Bescheid / SPECIFIC BOS (Checkliste v9)' },
+                  { value: 'A1', label: 'OPEN · A1' },
+                  { value: 'A2', label: 'OPEN · A2' },
+                  { value: 'A3', label: 'OPEN · A3' },
+                ]}
+                hint={einsatz ? 'aus dem gewählten Einsatz übernommen – hier nur zur Ansicht umstellbar' : undefined}
+              />
               <TextInput
                 label="Geplante Flughöhe (m)"
                 type="number"
@@ -218,15 +232,27 @@ export function KartePage() {
                 max={500}
                 value={hoeheText}
                 onChange={(e) => setHoeheText(e.target.value)}
-                error={abst.hoeheUeberschritten ? `Maximal ${MAX_FLUGHOEHE_M} m in der Kategorie OPEN – Genehmigung erforderlich.` : undefined}
+                error={regel.hoeheUeberschritten ? `Maximal ${MAX_FLUGHOEHE_M} m in der Kategorie OPEN – Genehmigung erforderlich.` : undefined}
               />
               <Checkbox label="2,5-km-Kreis (Abstand Flugplatz) anzeigen" checked={mitFlugplatz} onChange={setMitFlugplatz} />
-              {kreise.length > 0 ? <KartenLegende kreise={kreise} /> : <p className="text-sm text-gray-600">Flughöhe eingeben, um die Abstände zu berechnen.</p>}
-              {hoehe > 0 && (
-                <p className="text-xs text-gray-600">
-                  Contingency Volume {fmtMeter(abst.contingencyVolume)} · Abstand zu unbeteiligten Personen (1:1-Regel) {fmtMeter(abst.abstandUnbeteiligte)}
-                </p>
+              {kreise.length > 0 ? (
+                <KartenLegende kreise={kreise} />
+              ) : (
+                modus === 'formular' && <p className="text-sm text-gray-600">Flughöhe eingeben, um die Abstände zu berechnen.</p>
               )}
+              <ul className="list-disc pl-5 text-sm text-gray-700">
+                {regel.werte
+                  .filter((w) => !w.kreis)
+                  .map((w) => (
+                    <li key={w.id}>
+                      {w.label}: <b>{fmtMeter(w.meter)}</b> ({w.sub})
+                    </li>
+                  ))}
+                {regel.hinweise.map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-gray-600">{ABSTAND_HINWEIS_OHNE_GEWAEHR}</p>
             </div>
           </Card>
 

@@ -1,14 +1,15 @@
 import { MapPin } from 'lucide-react'
 import { MapContainer } from 'react-leaflet'
-import type { Position } from '../../db/types'
+import type { OpenUnterkategorie, Position, Rechtsgrundlage } from '../../db/types'
+import { abstandsModus } from '../../lib/calc'
 import { EmptyState } from '../../components/ui'
 import { fmtKoordinaten, fmtMeter, istPosition, schutzkreise } from './geo'
 import { GroesseBeobachten, OsmKacheln, SchutzkreiseLayer } from './KartenLayer'
 import { KartenLegende } from './KartenLegende'
 
 /**
- * Kompakte Karte für die Einsatz-Detailseite: Startpunkt mit Ground Risk Buffer
- * und Abstand zu Menschenansammlungen. Zum Bearbeiten → /karte?einsatz=<id>.
+ * Kompakte Karte für die Einsatz-Detailseite: Startpunkt mit den Abständen
+ * passend zur Rechtsgrundlage. Zum Bearbeiten → /karte?einsatz=<id>.
  */
 export function EinsatzKarte({
   position,
@@ -16,6 +17,8 @@ export function EinsatzKarte({
   hoehe = 280,
   mitFlugplatz = false,
   legende = true,
+  rechtsgrundlage,
+  openUnterkategorie,
 }: {
   position?: Position
   flughoeheM?: number
@@ -23,12 +26,16 @@ export function EinsatzKarte({
   hoehe?: number
   mitFlugplatz?: boolean
   legende?: boolean
+  /** bestimmt, welche Abstände gezeichnet werden (Bescheid/SPECIFIC oder OPEN A1–A3) */
+  rechtsgrundlage?: Rechtsgrundlage
+  openUnterkategorie?: OpenUnterkategorie
 }) {
   if (!istPosition(position)) {
     return <EmptyState icon={<MapPin size={28} />} title="Kein Startpunkt erfasst" text="Der Startpunkt kann in der Karte gesetzt und im Einsatz gespeichert werden." />
   }
-  const kreise = schutzkreise(flughoeheM ?? 0, mitFlugplatz)
-  const sichtbar = kreise.find((k) => k.id === 'menschen') ?? kreise[0]
+  const kreise = schutzkreise(flughoeheM ?? 0, mitFlugplatz, abstandsModus(rechtsgrundlage, openUnterkategorie))
+  // größter Abstandskreis (ohne 2,5-km-Flugplatzkreis) bestimmt den Ausschnitt
+  const sichtbar = kreise.find((k) => k.id !== 'flugplatz') ?? kreise[0]
   const radius = Math.max(sichtbar?.radiusM ?? 100, 60)
   // Zoom so wählen, dass der Kreis Abstand Menschenansammlungen ins Bild passt
   const zoom = Math.max(12, Math.min(18, Math.floor(Math.log2((156543 * Math.cos((position.lat * Math.PI) / 180) * (hoehe / 2.4)) / radius))))
