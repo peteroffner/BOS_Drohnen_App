@@ -7,7 +7,7 @@ import { Badge, Button, Card, Checkbox, EmptyState, Modal, TextArea, TextInput }
 import { useDarf } from '../auth/kontext'
 import { fmtDatum, fromDateInput, toDateInput } from '../../lib/format'
 
-const QUELLE_LABEL: Record<Mangel['quelle'], string> = { nachkontrolle: 'Nachkontrolle', wartung: 'Wartung', manuell: 'manuell' }
+const QUELLE_LABEL: Record<Mangel['quelle'], string> = { nachkontrolle: 'Nachkontrolle', wartung: 'Wartung', manuell: 'manuell', verleih: 'Verleih (Rückgabe)' }
 
 export function GeraetMaengel({ geraet, maengel, einsaetze }: { geraet: Geraet; maengel: Mangel[]; einsaetze: Einsatz[] }) {
   const [neu, setNeu] = useState(false)

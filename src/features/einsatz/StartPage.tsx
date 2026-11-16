@@ -10,6 +10,8 @@ import { useOrg } from '../../lib/useOrg'
 import { useDarf } from '../auth/kontext'
 import { EinsatzZeile } from './components/EinsatzZeile'
 import { useEinsaetze, useGeraete, useMaengel, usePiloten } from './data'
+import { useAusleihen } from '../geraete/daten'
+import { fmtDatum } from '../../lib/format'
 import { GERAET_STATUS_LABEL } from './logic/einsatz'
 
 export function StartPage() {
@@ -19,9 +21,10 @@ export function StartPage() {
   const piloten = usePiloten(orgId)
   const geraete = useGeraete(orgId)
   const maengel = useMaengel(orgId)
+  const ausleihen = useAusleihen(orgId)
   const [jahr] = useState(() => new Date().getFullYear())
   const darfAnlegen = useDarf('einsatz.anlegen')
-  if (!org || !einsaetze || !piloten || !geraete || !maengel) return null
+  if (!org || !einsaetze || !piloten || !geraete || !maengel || !ausleihen) return null
 
   const sortiert = [...einsaetze].sort((a, b) => b.datum.localeCompare(a.datum))
   const offen = sortiert.filter((e) => e.status !== 'abgeschlossen')
@@ -37,9 +40,10 @@ export function StartPage() {
     .filter((x) => x.s.ampel !== 'gruen')
     .sort((a, b) => (a.s.ampel === b.s.ampel ? 0 : a.s.ampel === 'rot' ? -1 : 1))
 
+  const offenVerliehen = new Map(ausleihen.filter((a) => a.status === 'verliehen').map((a) => [a.geraetId, a]))
   const geraetHinweise: { g: Geraet; offeneMaengel: number }[] = geraete
     .map((g) => ({ g, offeneMaengel: maengel.filter((m) => m.geraetId === g.id && !m.behobenAm).length }))
-    .filter((x) => x.offeneMaengel > 0 || x.g.status !== 'einsatzbereit')
+    .filter((x) => x.offeneMaengel > 0 || x.g.status !== 'einsatzbereit' || offenVerliehen.has(x.g.id))
 
   return (
     <div className="flex flex-col gap-5">
@@ -99,7 +103,13 @@ export function StartPage() {
                     <div className="flex flex-wrap items-center gap-2 font-semibold">
                       {g.name}
                       {g.status !== 'einsatzbereit' && <Badge color={g.status === 'wartung' ? 'gelb' : 'rot'}>{GERAET_STATUS_LABEL[g.status]}</Badge>}
+                      {offenVerliehen.has(g.id) && <Badge color="gelb">verliehen</Badge>}
                     </div>
+                    {offenVerliehen.has(g.id) && (
+                      <div className="text-sm text-gray-600">
+                        bei {offenVerliehen.get(g.id)!.empfaenger} seit {fmtDatum(offenVerliehen.get(g.id)!.ausgabeZeit)}
+                      </div>
+                    )}
                     {offeneMaengel > 0 && (
                       <div className="text-sm text-gray-600">
                         {offeneMaengel} offene{offeneMaengel === 1 ? 'r' : ''} Mangel{offeneMaengel === 1 ? '' : 'e'}

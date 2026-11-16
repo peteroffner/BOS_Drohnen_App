@@ -21,7 +21,8 @@ export type Aktion =
   | 'pilot.verwalten' // Piloten anlegen/bearbeiten/deaktivieren, Qualifikationen
   | 'pilot.eigene_stammdaten' // eigenen Piloten-Datensatz (ohne Freigabe/aktiv)
   | 'freigabe.erteilen'
-  | 'geraet.verwalten' // Geräte, Akkus
+  | 'geraet.verwalten' // Geräte, Akkus, Zubehör/Inventar
+  | 'geraet.verleihen' // Verleih an andere Organisationen (Ausgabe/Rückgabe)
   | 'wartung.durchfuehren'
   | 'mangel.anlegen'
   | 'mangel.beheben'
@@ -39,6 +40,7 @@ const MATRIX: Record<Aktion, Rolle[]> = {
   'pilot.eigene_stammdaten': ['admin', 'teamleiter', 'pilot'],
   'freigabe.erteilen': ['admin'],
   'geraet.verwalten': ['admin', 'teamleiter'],
+  'geraet.verleihen': ['admin', 'teamleiter'],
   'wartung.durchfuehren': ['admin', 'teamleiter'],
   'mangel.anlegen': ['admin', 'teamleiter', 'pilot'],
   'mangel.beheben': ['admin', 'teamleiter'],

@@ -97,6 +97,8 @@ export type GeraetStatus = 'einsatzbereit' | 'wartung' | 'ausser_dienst'
 export interface Akku {
   id: ID
   nummer: string // "1", "2", "FB-1" …
+  inventarnummer?: string
+  seriennummer?: string
   art: 'drohne' | 'fernbedienung'
   /** Zyklen vor Einführung der App */
   vorerfassteZyklen?: number
@@ -112,13 +114,79 @@ export interface Geraet {
   modell: string // "Matrice 300"
   payload?: string // "Zenmuse H20T"
   registrierungsnummer?: string // Betreiber-/Geräteregistrierung
+  /** Inventarnummer der Drohne selbst */
+  inventarnummer?: string
   seriennummer?: string
   klasse?: string // C0…C6 / Bestandsgerät
   verantwortlicher?: string
   status: GeraetStatus
   akkus: Akku[]
+  /** Zubehör mit Inventarnummern (Fernsteuerung, Bildschirm, Ladegerät, Koffer …) */
+  zubehoer?: Zubehoer[]
   vorerfassteMinuten?: number
   naechstesHerstellerservice?: ISODate
+  erstelltAm: ISODate
+}
+
+export type ZubehoerKategorie =
+  | 'fernsteuerung'
+  | 'bildschirm'
+  | 'ladegeraet'
+  | 'koffer'
+  | 'kamera'
+  | 'propeller'
+  | 'speicherkarte'
+  | 'sonstiges'
+
+export interface Zubehoer {
+  id: ID
+  kategorie: ZubehoerKategorie
+  bezeichnung: string // z. B. "DJI Smart Controller", "Transportkoffer groß"
+  inventarnummer?: string
+  seriennummer?: string
+  anzahl?: number // z. B. 4 Ersatzpropeller (Standard 1)
+  status: 'ok' | 'defekt' | 'ausgemustert'
+  bemerkung?: string
+}
+
+// ---------------------------------------------------------------- Verleih
+
+/** Ein Inventarteil in der Übergabe-/Rückgabe-Checkliste (Kopie zum Zeitpunkt der Ausgabe) */
+export interface VerleihPosition {
+  /** Gerät-ID (Drohne), Akku-ID oder Zubehör-ID */
+  teilId: ID
+  art: 'drohne' | 'akku' | 'zubehoer'
+  bezeichnung: string
+  inventarnummer?: string
+  seriennummer?: string
+  anzahl?: number
+  /** Ausgabe: mitgegeben (abgehakt) */
+  ausgegeben: boolean
+  /** Rückgabe: zurück und in Ordnung / beschädigt / fehlt (nur bei ausgegebenen Teilen) */
+  rueckgabe?: 'ok' | 'beschaedigt' | 'fehlt'
+  bemerkung?: string
+}
+
+export interface Ausleihe {
+  id: ID
+  orgId: ID
+  geraetId: ID
+  status: 'verliehen' | 'zurueck'
+  /** Feuerwehr / Organisation, die das Gerät hat */
+  empfaenger: string
+  ansprechperson?: string
+  telefon?: string
+  email?: string
+  zweck?: string
+  ausgabeZeit: ISODate
+  ausgabeDurch: string
+  ausgabeBemerkung?: string
+  geplanteRueckgabe?: ISODate
+  positionen: VerleihPosition[]
+  rueckgabeZeit?: ISODate
+  rueckgabeDurch?: string
+  rueckgabeUebergebenVon?: string
+  rueckgabeBemerkung?: string
   erstelltAm: ISODate
 }
 
@@ -141,8 +209,9 @@ export interface Mangel {
   orgId: ID
   geraetId: ID
   erstelltAm: ISODate
-  quelle: 'nachkontrolle' | 'wartung' | 'manuell'
+  quelle: 'nachkontrolle' | 'wartung' | 'manuell' | 'verleih'
   einsatzId?: ID
+  ausleiheId?: ID
   beschreibung: string
   behobenAm?: ISODate
   behobenVon?: string

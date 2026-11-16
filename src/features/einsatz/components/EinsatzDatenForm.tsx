@@ -1,5 +1,7 @@
 import { LocateFixed, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
+import { db } from '../../../db/db'
 import { Link } from 'react-router-dom'
 import type { Einsatz, Geraet, Mangel, OpenUnterkategorie, Organisation, Pilot, Rechtsgrundlage } from '../../../db/types'
 import { AmpelBadge, Badge, Button, Card, Checkbox, Segmented, TextInput } from '../../../components/ui'
@@ -25,6 +27,8 @@ interface Props {
 /** Einsatzdaten laut Checkliste v9, Seite 1 */
 export function EinsatzDatenForm({ start, org, piloten, geraete, maengel, einsaetze, speichernLabel, onSpeichern, onAbbrechen, gesperrt }: Props) {
   const [e, setE] = useState<Einsatz>(start)
+  // Geräte, die gerade an eine andere Organisation verliehen sind
+  const verliehen = useLiveQuery(async () => new Map((await db.ausleihen.where('status').equals('verliehen').toArray()).map((a) => [a.geraetId, a.empfaenger])), []) ?? new Map<string, string>()
   const [hoeheText, setHoeheText] = useState(start.geplanteFlughoeheM?.toString() ?? '')
   const [gps, setGps] = useState<{ laedt: boolean; fehler?: string }>({ laedt: false })
   const [speichert, setSpeichert] = useState(false)
@@ -140,7 +144,7 @@ export function EinsatzDatenForm({ start, org, piloten, geraete, maengel, einsae
                 <div key={g.id} className="py-1">
                   <Checkbox
                     checked={gewaehlt}
-                    disabled={gesperrt || (g.status === 'ausser_dienst' && !gewaehlt)}
+                    disabled={gesperrt || ((g.status === 'ausser_dienst' || verliehen.has(g.id)) && !gewaehlt)}
                     onChange={(v) => toggleGeraet(g, v)}
                     label={
                       <span className="flex flex-wrap items-center gap-2">
@@ -150,6 +154,7 @@ export function EinsatzDatenForm({ start, org, piloten, geraete, maengel, einsae
                           {g.registrierungsnummer && ` · Reg.-Nr. ${g.registrierungsnummer}`}
                         </span>
                         {g.status !== 'einsatzbereit' && <Badge color={g.status === 'wartung' ? 'gelb' : 'rot'}>{GERAET_STATUS_LABEL[g.status]}</Badge>}
+                        {verliehen.has(g.id) && <Badge color="gelb">verliehen an {verliehen.get(g.id)}</Badge>}
                         {nm > 0 && <Badge color="gelb">{nm} offene{nm === 1 ? 'r' : ''} Mangel{nm === 1 ? '' : 'e'}</Badge>}
                       </span>
                     }

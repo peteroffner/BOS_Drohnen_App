@@ -21,7 +21,7 @@ import type {
 } from 'dexie'
 
 /** Synchronisierte Tabellen (Name = Supabase-Tabelle), in Push-Reihenfolge */
-export const SYNC_TABELLEN = ['organisationen', 'piloten', 'geraete', 'einsaetze', 'wartungen', 'maengel'] as const
+export const SYNC_TABELLEN = ['organisationen', 'piloten', 'geraete', 'einsaetze', 'wartungen', 'maengel', 'ausleihen'] as const
 export type SyncTabelle = (typeof SYNC_TABELLEN)[number]
 
 export const OUTBOX = 'outbox'

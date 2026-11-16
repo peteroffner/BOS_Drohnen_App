@@ -8,7 +8,9 @@ import { formatStunden } from '../../lib/calc'
 import { geraetStatistik } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
 import { useDarf } from '../auth/kontext'
-import { useEinsaetze, useGeraete, useMaengel, useWartungen } from './daten'
+import { useAusleihen, useEinsaetze, useGeraete, useMaengel, useWartungen } from './daten'
+import { offeneAusleihe } from './inventar'
+import { fmtDatum } from '../../lib/format'
 import { MONATE, offeneMaengel, serviceFaelligkeit, STATUS_FARBE, STATUS_LABEL, wartungImMonatErledigt } from './logic'
 
 export function GeraeteListePage() {
@@ -17,11 +19,12 @@ export function GeraeteListePage() {
   const einsaetze = useEinsaetze(org?.id)
   const maengel = useMaengel(org?.id)
   const wartungen = useWartungen(org?.id)
+  const ausleihen = useAusleihen(org?.id)
   const [neu, setNeu] = useState(false)
   const darfVerwalten = useDarf('geraet.verwalten')
   const [heute] = useState(() => new Date())
 
-  if (!org || !geraete || !einsaetze || !maengel || !wartungen) return null
+  if (!org || !geraete || !einsaetze || !maengel || !wartungen || !ausleihen) return null
 
   return (
     <>
@@ -50,6 +53,7 @@ export function GeraeteListePage() {
             const offen = offeneMaengel(maengel, g.id).length
             const erledigt = wartungImMonatErledigt(wartungen, g.id, heute)
             const service = serviceFaelligkeit(g.naechstesHerstellerservice, heute)
+            const verliehen = offeneAusleihe(ausleihen, g.id)
             return (
               <li key={g.id}>
                 <Link to={`/geraete/${g.id}`} className="flex h-full flex-col gap-3 rounded-lg border border-linie bg-white p-4 hover:border-rot-200 hover:bg-rot-50">
@@ -70,6 +74,11 @@ export function GeraeteListePage() {
                       {formatStunden(st.minuten)} <span className="font-normal text-gray-600">· {st.fluege} Flüge</span>
                     </dd>
                   </dl>
+                  {verliehen && (
+                    <div className="rounded-md border border-amber-200 bg-warn-bg px-3 py-2 text-sm font-semibold text-warn">
+                      Verliehen an {verliehen.empfaenger} seit {fmtDatum(verliehen.ausgabeZeit)}
+                    </div>
+                  )}
                   <div className="mt-auto flex flex-wrap gap-2">
                     {offen > 0 ? (
                       <Badge color="rot">

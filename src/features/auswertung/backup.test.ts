@@ -55,7 +55,7 @@ describe('Backup Rundreise', () => {
   it('bricht bei Fehler ab, ohne Daten zu verändern', async () => {
     const ziel = new BosDb('backup-fehler')
     await ziel.organisationen.add(org)
-    const kaputt: BackupDatei = { format: BACKUP_FORMAT, version: 1, erstelltAm: '', dbVersion: 1, app: '', tabellen: { organisationen: [{ id: 'x' }, { id: 'x' }], piloten: [], geraete: [], einsaetze: [], wartungen: [], maengel: [], einstellungen: [] } }
+    const kaputt: BackupDatei = { format: BACKUP_FORMAT, version: 1, erstelltAm: '', dbVersion: 1, app: '', tabellen: { organisationen: [{ id: 'x' }, { id: 'x' }], piloten: [], geraete: [], einsaetze: [], wartungen: [], maengel: [], ausleihen: [], einstellungen: [] } }
     await expect(backupWiederherstellen(ziel, kaputt)).rejects.toThrow()
     expect(await ziel.organisationen.toArray()).toEqual([org])
     ziel.close()

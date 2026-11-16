@@ -58,6 +58,7 @@ export function GeraetAkkus({ geraet, einsaetze }: { geraet: Geraet; einsaetze: 
                 <div className="text-sm text-gray-600">
                   <b className="tabular-nums text-anthrazit">{zyklen[a.id] ?? 0}</b> Zyklen
                   {a.vorerfassteZyklen ? ` (davon ${a.vorerfassteZyklen} vorerfasst)` : ''}
+                  {a.inventarnummer ? ` · Inv.-Nr. ${a.inventarnummer}` : ''}
                   {a.bemerkung ? ` · ${a.bemerkung}` : ''}
                 </div>
               </div>
@@ -126,7 +127,7 @@ function AkkuModal({
           </Button>
           <Button
             disabled={!a.nummer.trim()}
-            onClick={() => onSave({ ...a, nummer: a.nummer.trim(), bemerkung: a.bemerkung?.trim() || undefined, vorerfassteZyklen: Math.max(0, parseInt(vor, 10) || 0) || undefined })}
+            onClick={() => onSave({ ...a, nummer: a.nummer.trim(), inventarnummer: a.inventarnummer?.trim() || undefined, seriennummer: a.seriennummer?.trim() || undefined, bemerkung: a.bemerkung?.trim() || undefined, vorerfassteZyklen: Math.max(0, parseInt(vor, 10) || 0) || undefined })}
           >
             Speichern
           </Button>
@@ -149,6 +150,10 @@ function AkkuModal({
             { value: 'ausgemustert', label: 'ausgemustert' },
           ]}
         />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextInput label="Inventarnummer" value={a.inventarnummer ?? ''} onChange={(e) => setA({ ...a, inventarnummer: e.target.value })} />
+          <TextInput label="Seriennummer" value={a.seriennummer ?? ''} onChange={(e) => setA({ ...a, seriennummer: e.target.value })} />
+        </div>
         <TextInput label="Bemerkung" value={a.bemerkung ?? ''} onChange={(e) => setA({ ...a, bemerkung: e.target.value })} placeholder="z. B. Zelle 3 schwächer" />
         {!neu && verwendet && <p className="text-sm text-gray-600">Dieser Akku wurde in Flügen verwendet und kann nicht gelöscht, nur ausgemustert werden.</p>}
       </div>

@@ -21,14 +21,15 @@ export function AuswertungPage() {
   const orgId = org?.id ?? ''
   const daten = useLiveQuery(async () => {
     if (!orgId) return undefined
-    const [einsaetze, piloten, geraete, maengel, wartungen] = await Promise.all([
+    const [einsaetze, piloten, geraete, maengel, wartungen, ausleihen] = await Promise.all([
       db.einsaetze.where('orgId').equals(orgId).toArray(),
       db.piloten.where('orgId').equals(orgId).toArray(),
       db.geraete.where('orgId').equals(orgId).toArray(),
       db.maengel.where('orgId').equals(orgId).toArray(),
       db.wartungen.where('orgId').equals(orgId).toArray(),
+      db.ausleihen.where('orgId').equals(orgId).toArray(),
     ])
-    return { einsaetze, piloten, geraete, maengel, wartungen }
+    return { einsaetze, piloten, geraete, maengel, wartungen, ausleihen }
   }, [orgId])
 
   const [heute] = useState(() => new Date())
@@ -106,6 +107,7 @@ export function AuswertungPage() {
         alleGeraete: daten.geraete,
         wartungen: daten.wartungen,
         maengel: daten.maengel,
+        ausleihen: daten.ausleihen,
       })
       downloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Auswertung_${basisName}.xlsx`)
     })

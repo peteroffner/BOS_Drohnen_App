@@ -39,7 +39,7 @@ describe('Excel-Export', () => {
     )
     const wb = new ExcelJS.Workbook()
     await wb.xlsx.load(buf)
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Flugbuch', 'Pilotenstunden', 'Geräte', 'Wartung Hornisse 1', 'Wartung Hornisse 2', 'Mängel'])
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Flugbuch', 'Pilotenstunden', 'Geräte', 'Wartung Hornisse 1', 'Wartung Hornisse 2', 'Mängel', 'Inventar', 'Verleih'])
     const fb = wb.getWorksheet('Flugbuch')!
     expect(fb.getRow(3).getCell(1).value).toBe('Nr.')
     expect(fb.getRow(3).font?.bold).toBe(true)

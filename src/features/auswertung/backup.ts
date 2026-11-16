@@ -7,7 +7,7 @@ export const LETZTES_BACKUP_KEY = 'letztesBackup'
 /** Ab so vielen Tagen ohne Backup wird erinnert */
 export const BACKUP_ERINNERUNG_TAGE = 30
 
-export const TABELLEN = ['organisationen', 'piloten', 'geraete', 'einsaetze', 'wartungen', 'maengel', 'einstellungen'] as const
+export const TABELLEN = ['organisationen', 'piloten', 'geraete', 'einsaetze', 'wartungen', 'maengel', 'ausleihen', 'einstellungen'] as const
 export type Tabelle = (typeof TABELLEN)[number]
 
 export const TABELLEN_LABEL: Record<Tabelle, string> = {
@@ -17,6 +17,7 @@ export const TABELLEN_LABEL: Record<Tabelle, string> = {
   einsaetze: 'Einsätze',
   wartungen: 'Wartungsprüfungen',
   maengel: 'Mängel',
+  ausleihen: 'Verleih',
   einstellungen: 'Einstellungen',
 }
 

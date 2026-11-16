@@ -248,6 +248,19 @@ select tests.als('p1');
 select tests.ok(tests.zeilen($$update public.geraete set data = data || '{"status":"wartung"}'$$) = 0, 'pilot kann Gerät nicht ändern');
 select tests.ok(tests.zeilen($$update public.wartungen set data = data || '{"bemerkung":"x"}'$$) = 0, 'pilot kann Wartung nicht ändern');
 
+-- Verleih (ausleihen): admin/teamleiter schreiben, alle Mitglieder lesen
+select tests.fehler(format($$insert into public.ausleihen (id, org_id, data) values ('41000000-0000-4000-8000-000000000001', %L, tests.dok('41000000-0000-4000-8000-000000000001', %L))$$, :'org_a', :'org_a'), '42501', 'pilot kann nichts verleihen');
+select tests.als('le');
+select tests.fehler(format($$insert into public.ausleihen (id, org_id, data) values ('41000000-0000-4000-8000-000000000001', %L, tests.dok('41000000-0000-4000-8000-000000000001', %L))$$, :'org_a', :'org_a'), '42501', 'leser kann nichts verleihen');
+select tests.als('tl');
+insert into public.ausleihen (id, org_id, data) values ('41000000-0000-4000-8000-000000000001', :'org_a', tests.dok('41000000-0000-4000-8000-000000000001', :'org_a', '{"empfaenger":"FF Nachbarort","status":"verliehen"}'));
+select tests.ok(tests.zeilen($$update public.ausleihen set data = data || '{"status":"zurueck"}'$$) = 1, 'teamleiter verleiht und erfasst Rückgabe');
+select tests.als('p1');
+select tests.ok((select count(*) from public.ausleihen) = 1, 'pilot sieht den Verleih');
+select tests.ok(tests.zeilen($$update public.ausleihen set data = data || '{"status":"verliehen"}'$$) = 0, 'pilot kann Verleih nicht ändern');
+select tests.als('b1');
+select tests.ok((select count(*) from public.ausleihen) = 0, 'fremde Org sieht den Verleih nicht');
+
 select tests.als('p1');
 insert into public.maengel (id, org_id, data) values ('30000000-0000-4000-8000-000000000001', :'org_a', tests.dok('30000000-0000-4000-8000-000000000001', :'org_a', '{"beschreibung":"Propeller beschädigt","quelle":"nachkontrolle"}'));
 select tests.ok(true, 'pilot legt Mangel an');
@@ -316,10 +329,11 @@ select tests.ok(not exists (select 1 from public.mitglieder where org_id = :'org
 -- =========================================================================
 -- 11. Realtime / RLS aktiv
 -- =========================================================================
-select tests.ok((select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public') = 6, 'sechs Tabellen in supabase_realtime');
+select tests.ok((select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public') = 7, 'sieben Tabellen in supabase_realtime');
 select tests.ok((select bool_and(relrowsecurity) from pg_class where oid in
   ('public.organisationen'::regclass, 'public.piloten'::regclass, 'public.geraete'::regclass, 'public.einsaetze'::regclass,
-   'public.wartungen'::regclass, 'public.maengel'::regclass, 'public.mitglieder'::regclass, 'public.einladungen'::regclass)), 'RLS auf allen Tabellen aktiv');
+   'public.wartungen'::regclass, 'public.maengel'::regclass, 'public.mitglieder'::regclass, 'public.einladungen'::regclass,
+   'public.ausleihen'::regclass)), 'RLS auf allen Tabellen aktiv');
 select tests.ok(not exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef

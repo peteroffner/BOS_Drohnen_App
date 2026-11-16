@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import type { Einsatz, Geraet, Mangel, Pilot, WartungsPruefung } from '../../db/types'
+import type { Ausleihe, Einsatz, Geraet, Mangel, Pilot, WartungsPruefung } from '../../db/types'
 
 /**
  * Live-Abfragen für Modul B (Piloten, Geräte, Wartung), immer nach Organisation gefiltert.
@@ -24,6 +24,10 @@ export function usePiloten(orgId?: string): Pilot[] | undefined {
 
 export function useMaengel(orgId?: string): Mangel[] | undefined {
   return useLiveQuery(() => (orgId ? db.maengel.where('orgId').equals(orgId).toArray() : []), [orgId])
+}
+
+export function useAusleihen(orgId?: string): Ausleihe[] | undefined {
+  return useLiveQuery(() => (orgId ? db.ausleihen.where('orgId').equals(orgId).toArray() : []), [orgId])
 }
 
 export function useWartungen(orgId?: string, geraetId?: string): WartungsPruefung[] | undefined {

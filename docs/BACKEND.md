@@ -13,7 +13,7 @@ Entscheidungen (12.11.2026): eigenes Supabase-Projekt (Region EU/Frankfurt) · *
 ## Datenbank (Postgres)
 Fachdaten werden als **Dokument (jsonb)** gespeichert – genau das Objekt aus `src/db/types.ts`. Damit bleibt das Datenmodell an einer Stelle, und der Sync ist generisch.
 
-Synchronisierte Tabellen (Name = Dexie-Tabelle): `organisationen`, `piloten`, `geraete`, `einsaetze`, `wartungen`, `maengel`
+Synchronisierte Tabellen (Name = Dexie-Tabelle): `organisationen`, `piloten`, `geraete`, `einsaetze`, `wartungen`, `maengel`, `ausleihen` (Verleih, seit Migration 0003)
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|

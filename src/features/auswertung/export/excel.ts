@@ -1,6 +1,7 @@
 import type { Workbook, Worksheet } from 'exceljs'
-import type { Geraet, Mangel, WartungsPruefung } from '../../../db/types'
-import { fmtDatum } from '../../../lib/format'
+import type { Ausleihe, Geraet, Mangel, WartungsPruefung } from '../../../db/types'
+import { fmtDatum, fmtDatumZeit } from '../../../lib/format'
+import { ZUBEHOER_KATEGORIE_LABEL, ZUBEHOER_STATUS_LABEL } from '../../geraete/inventar'
 import { akkuPruefId, WARTUNG_V2 } from '../../../templates/wartung_v2'
 import { MONATE_LANG, stunden, type GeraetZeile, type PilotZeile } from '../auswertung'
 import type { FlugbuchZeile } from './flugbuchZeilen'
@@ -24,11 +25,13 @@ export interface ExcelDaten {
   alleGeraete: Geraet[]
   wartungen: WartungsPruefung[]
   maengel: Mangel[]
+  /** optional, für Inventar-/Verleih-Blätter */
+  ausleihen?: Ausleihe[]
 }
 
 const AMPEL: Record<PilotZeile['ampel'], string> = { gruen: 'grün – einsatzbereit', gelb: 'gelb – eingeschränkt', rot: 'rot – nicht freigegeben' }
 const STATUS: Record<Geraet['status'], string> = { einsatzbereit: 'einsatzbereit', wartung: 'Wartung', ausser_dienst: 'außer Dienst' }
-const QUELLE: Record<Mangel['quelle'], string> = { nachkontrolle: 'Nachkontrolle', wartung: 'Wartung', manuell: 'manuell' }
+const QUELLE: Record<Mangel['quelle'], string> = { nachkontrolle: 'Nachkontrolle', wartung: 'Wartung', manuell: 'manuell', verleih: 'Verleih (Rückgabe)' }
 const ERGEBNIS: Record<string, string> = { ok: 'OK', mangel: 'Mangel', na: 'n. a.' }
 
 const FARBE = { rot: 'FFA81010', flaeche: 'FFF6F6F6', ok: 'FFE5F4EA', mangel: 'FFFBE3E3', grau: 'FFE1E1E1' }
@@ -194,6 +197,89 @@ export async function erzeugeExcel(d: ExcelDaten, ExcelJS?: ExcelJsModul): Promi
         behoben: fmtDatum(m.behobenAm),
         von: m.behobenVon ?? '',
         massnahme: m.massnahme ?? '',
+      })),
+  )
+
+  // Inventar (Drohne, Akkus, Zubehör aller Geräte)
+  const ausl = d.ausleihen ?? []
+  tabellenBlatt(
+    wb,
+    blattName('Inventar', namen),
+    `Inventar – ${d.orgName}`,
+    [
+      { header: 'Gerät', key: 'geraet', width: 18 },
+      { header: 'Inventarnr.', key: 'inv', width: 14 },
+      { header: 'Art', key: 'art', width: 16 },
+      { header: 'Bezeichnung', key: 'bez', width: 34 },
+      { header: 'Seriennr.', key: 'sn', width: 18 },
+      { header: 'Anzahl', key: 'anzahl', width: 8 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Standort', key: 'ort', width: 28 },
+    ],
+    d.alleGeraete.flatMap((g) => {
+      const offen = ausl.find((a) => a.geraetId === g.id && a.status === 'verliehen')
+      const ort = offen ? `verliehen an ${offen.empfaenger}` : d.orgName
+      return [
+        { geraet: g.name, inv: g.inventarnummer ?? '', art: 'Drohne', bez: [g.hersteller, g.modell].filter(Boolean).join(' '), sn: g.seriennummer ?? '', anzahl: 1, status: STATUS[g.status], ort },
+        ...g.akkus.map((a) => ({
+          geraet: g.name,
+          inv: a.inventarnummer ?? '',
+          art: a.art === 'drohne' ? 'Akku Drohne' : 'Akku Fernbedienung',
+          bez: `Akku Nr. ${a.nummer}`,
+          sn: a.seriennummer ?? '',
+          anzahl: 1,
+          status: a.status,
+          ort,
+        })),
+        ...(g.zubehoer ?? []).map((z) => ({
+          geraet: g.name,
+          inv: z.inventarnummer ?? '',
+          art: ZUBEHOER_KATEGORIE_LABEL[z.kategorie],
+          bez: z.bezeichnung,
+          sn: z.seriennummer ?? '',
+          anzahl: z.anzahl ?? 1,
+          status: ZUBEHOER_STATUS_LABEL[z.status],
+          ort,
+        })),
+      ]
+    }),
+  )
+
+  // Verleih
+  tabellenBlatt(
+    wb,
+    blattName('Verleih', namen),
+    `Verleih – ${d.orgName}`,
+    [
+      { header: 'Gerät', key: 'geraet', width: 18 },
+      { header: 'Verliehen an', key: 'an', width: 24 },
+      { header: 'Ansprechperson', key: 'person', width: 20 },
+      { header: 'Zweck', key: 'zweck', width: 24 },
+      { header: 'Ausgabe', key: 'aus', width: 16 },
+      { header: 'Übergeben durch', key: 'ausDurch', width: 18 },
+      { header: 'Rückgabe', key: 'rueck', width: 16 },
+      { header: 'Zurückgenommen durch', key: 'rueckDurch', width: 20 },
+      { header: 'Teile', key: 'teile', width: 8 },
+      { header: 'Fehlend / beschädigt', key: 'probleme', width: 40 },
+      { header: 'Status', key: 'status', width: 12 },
+    ],
+    [...ausl]
+      .sort((a, b) => b.ausgabeZeit.localeCompare(a.ausgabeZeit))
+      .map((a) => ({
+        geraet: gName.get(a.geraetId) ?? 'unbekannt',
+        an: a.empfaenger,
+        person: [a.ansprechperson, a.telefon].filter(Boolean).join(', '),
+        zweck: a.zweck ?? '',
+        aus: fmtDatumZeit(a.ausgabeZeit),
+        ausDurch: a.ausgabeDurch,
+        rueck: fmtDatumZeit(a.rueckgabeZeit),
+        rueckDurch: a.rueckgabeDurch ?? '',
+        teile: a.positionen.filter((p) => p.ausgegeben).length,
+        probleme: a.positionen
+          .filter((p) => p.rueckgabe === 'fehlt' || p.rueckgabe === 'beschaedigt')
+          .map((p) => `${p.bezeichnung}${p.inventarnummer ? ` (${p.inventarnummer})` : ''}: ${p.rueckgabe === 'fehlt' ? 'fehlt' : 'beschädigt'}`)
+          .join('; '),
+        status: a.status === 'verliehen' ? 'verliehen' : 'zurück',
       })),
   )
 

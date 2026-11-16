@@ -11,13 +11,16 @@ import { alleFluege, geraetStatistik } from '../../lib/stats'
 import { useOrg } from '../../lib/useOrg'
 import { useDarf } from '../auth/kontext'
 import { teileMinuten, zuMinuten } from '../piloten/logic'
-import { useEinsaetze, useMaengel, usePiloten, useWartungen } from './daten'
+import { useAusleihen, useEinsaetze, useGeraete, useMaengel, usePiloten, useWartungen } from './daten'
 import { GeraetAkkus } from './GeraetAkkus'
 import { GeraetMaengel } from './GeraetMaengel'
 import { geraetVerwendet, offeneMaengel, serviceFaelligkeit, STATUS_FARBE, STATUS_LABEL } from './logic'
 import { Wartungsbuch } from './Wartungsbuch'
+import { GeraetInventar } from './GeraetInventar'
+import { GeraetVerleih } from './GeraetVerleih'
+import { offeneAusleihe } from './inventar'
 
-type Tab = 'uebersicht' | 'akkus' | 'wartung' | 'maengel'
+type Tab = 'uebersicht' | 'inventar' | 'akkus' | 'verleih' | 'wartung' | 'maengel'
 
 const STATUS_OPTIONEN = (Object.keys(STATUS_LABEL) as GeraetStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))
 
@@ -30,9 +33,11 @@ export function GeraetDetailPage() {
   const piloten = usePiloten(org?.id)
   const maengel = useMaengel(org?.id)
   const wartungen = useWartungen(org?.id, id)
+  const ausleihen = useAusleihen(org?.id)
+  const alleGeraete = useGeraete(org?.id)
   const darfVerwalten = useDarf('geraet.verwalten')
 
-  if (!org || geraet === undefined || !einsaetze || !piloten || !maengel || !wartungen) return null
+  if (!org || geraet === undefined || !einsaetze || !piloten || !maengel || !wartungen || !ausleihen || !alleGeraete) return null
   if (!geraet || geraet.orgId !== org.id)
     return (
       <EmptyState
@@ -48,9 +53,13 @@ export function GeraetDetailPage() {
   const tab = (params.get('tab') as Tab) || 'uebersicht'
   const offen = offeneMaengel(maengel, geraet.id)
   const service = serviceFaelligkeit(geraet.naechstesHerstellerservice)
+  const verliehen = offeneAusleihe(ausleihen, geraet.id)
+  const geraetAusleihen = ausleihen.filter((a) => a.geraetId === geraet.id).sort((a, b) => b.ausgabeZeit.localeCompare(a.ausgabeZeit))
   const tabs: { value: Tab; label: string }[] = [
     { value: 'uebersicht', label: 'Übersicht' },
+    { value: 'inventar', label: 'Inventar' },
     { value: 'akkus', label: `Akkus (${geraet.akkus.filter((a) => a.status !== 'ausgemustert').length})` },
+    { value: 'verleih', label: verliehen ? 'Verleih (verliehen)' : 'Verleih' },
     { value: 'wartung', label: 'Wartungsbuch' },
     { value: 'maengel', label: `Mängel${offen.length ? ` (${offen.length})` : ''}` },
   ]
@@ -64,6 +73,7 @@ export function GeraetDetailPage() {
         title={
           <span className="flex flex-wrap items-center gap-2">
             {geraet.name} <Badge color={STATUS_FARBE[geraet.status]}>{STATUS_LABEL[geraet.status]}</Badge>
+            {verliehen && <Badge color="gelb">verliehen an {verliehen.empfaenger}</Badge>}
           </span>
         }
         subtitle={[geraet.hersteller, geraet.modell, geraet.registrierungsnummer && `Reg. ${geraet.registrierungsnummer}`].filter(Boolean).join(' · ')}
@@ -99,7 +109,9 @@ export function GeraetDetailPage() {
           </div>
         </div>
       )}
+      {tab === 'inventar' && <GeraetInventar geraet={geraet} alleGeraete={alleGeraete} />}
       {tab === 'akkus' && <GeraetAkkus geraet={geraet} einsaetze={einsaetze} />}
+      {tab === 'verleih' && <GeraetVerleih geraet={geraet} ausleihen={geraetAusleihen} orgName={org.name} />}
       {tab === 'wartung' && <Wartungsbuch geraet={geraet} wartungen={wartungen} maengel={maengel} />}
       {tab === 'maengel' && <GeraetMaengel geraet={geraet} maengel={maengel.filter((m) => m.geraetId === geraet.id)} einsaetze={einsaetze} />}
     </>
@@ -121,7 +133,7 @@ function Stammdaten({ geraet, nurAnsicht }: { geraet: Geraet; nurAnsicht: boolea
   const vor = teileMinuten(geraet.vorerfassteMinuten ?? 0)
   const [vh, setVh] = useState(String(vor.stunden))
   const [vm, setVm] = useState(String(vor.minuten))
-  type TextFeld = 'name' | 'hersteller' | 'modell' | 'payload' | 'registrierungsnummer' | 'seriennummer' | 'klasse' | 'verantwortlicher'
+  type TextFeld = 'name' | 'hersteller' | 'modell' | 'payload' | 'registrierungsnummer' | 'inventarnummer' | 'seriennummer' | 'klasse' | 'verantwortlicher'
   const set = (k: TextFeld) => (e: { target: { value: string } }) => setG({ ...g, [k]: e.target.value })
   const zahl = (v: string) => Math.max(0, parseInt(v, 10) || 0)
   const opt = (v?: string) => v?.trim() || undefined
@@ -134,6 +146,7 @@ function Stammdaten({ geraet, nurAnsicht }: { geraet: Geraet; nurAnsicht: boolea
       payload: opt(g.payload),
       registrierungsnummer: opt(g.registrierungsnummer),
       seriennummer: opt(g.seriennummer),
+      inventarnummer: opt(g.inventarnummer),
       klasse: opt(g.klasse),
       verantwortlicher: opt(g.verantwortlicher),
       naechstesHerstellerservice: g.naechstesHerstellerservice,
@@ -157,6 +170,7 @@ function Stammdaten({ geraet, nurAnsicht }: { geraet: Geraet; nurAnsicht: boolea
           <TextInput label="Klasse" value={g.klasse ?? ''} onChange={set('klasse')} placeholder="C0…C6 / Bestandsgerät" />
           <TextInput label="Registrierungsnummer" value={g.registrierungsnummer ?? ''} onChange={set('registrierungsnummer')} />
           <TextInput label="Seriennummer" value={g.seriennummer ?? ''} onChange={set('seriennummer')} />
+          <TextInput label="Inventarnummer (Drohne)" value={g.inventarnummer ?? ''} onChange={set('inventarnummer')} />
           <TextInput className="sm:col-span-2" label="Geräteverantwortlicher" value={g.verantwortlicher ?? ''} onChange={set('verantwortlicher')} />
           <TextInput
             label="Nächstes Herstellerservice"
