@@ -1,11 +1,11 @@
-import { FileDown, Handshake, Undo2 } from 'lucide-react'
-import { useState } from 'react'
+import { Briefcase, ChevronRight, FileDown, Handshake, Trash2, Undo2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { db, jetzt, neueId } from '../../db/db'
 import type { Ausleihe, Geraet, VerleihPosition } from '../../db/types'
 import { Badge, Button, Card, Checkbox, EmptyState, Modal, NurAnsichtHinweis, Segmented, TextArea, TextInput } from '../../components/ui'
 import { fmtDatum, fmtDatumZeit, fromDateInput, fromLocalInput, toLocalInput } from '../../lib/format'
 import { useDarf, useMitgliedschaft } from '../auth/kontext'
-import { ausgabeFehler, inventarPositionen, rueckgabeErgebnis, rueckgabeFehler, rueckgabeMaengel } from './inventar'
+import { ausgabeFehler, inventarGruppen, inventarPositionen, rueckgabeErgebnis, rueckgabeFehler, rueckgabeMaengel, setzeAusgegeben, setzeRueckgabe, type InventarGruppe } from './inventar'
 
 const RUECKGABE_LABEL: Record<NonNullable<VerleihPosition['rueckgabe']>, string> = { ok: 'zurück, ok', beschaedigt: 'beschädigt', fehlt: 'fehlt' }
 
@@ -17,11 +17,20 @@ async function pdf(a: Ausleihe, geraet: Geraet, orgName: string) {
 /** Verleih an andere Feuerwehren/Organisationen: Ausgabe, Rückgabe, Verlauf */
 export function GeraetVerleih({ geraet, ausleihen, orgName }: { geraet: Geraet; ausleihen: Ausleihe[]; orgName: string }) {
   const darf = useDarf('geraet.verleihen')
+  const darfLoeschen = useDarf('verleih.loeschen')
+  const [loeschen, setLoeschen] = useState<Ausleihe | null>(null)
   const offen = ausleihen.find((a) => a.status === 'verliehen')
   const verlauf = ausleihen.filter((a) => a.status === 'zurueck')
   const [ausgabe, setAusgabe] = useState(false)
   const [rueckgabe, setRueckgabe] = useState(false)
   const [pdfFehler, setPdfFehler] = useState('')
+
+  const loeschenButton = (a: Ausleihe) =>
+    darfLoeschen && (
+      <Button variant="ghost" size="sm" icon={<Trash2 size={16} />} onClick={() => setLoeschen(a)} aria-label={`Verleih an ${a.empfaenger} löschen`}>
+        Löschen
+      </Button>
+    )
 
   const pdfButton = (a: Ausleihe) => (
     <Button
@@ -43,7 +52,15 @@ export function GeraetVerleih({ geraet, ausleihen, orgName }: { geraet: Geraet; 
       {pdfFehler && <p className="text-sm font-semibold text-fehler">{pdfFehler}</p>}
 
       {offen ? (
-        <Card title="Derzeit verliehen" actions={pdfButton(offen)}>
+        <Card
+          title="Derzeit verliehen"
+          actions={
+            <>
+              {pdfButton(offen)}
+              {loeschenButton(offen)}
+            </>
+          }
+        >
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge color="gelb">verliehen</Badge>
@@ -102,7 +119,10 @@ export function GeraetVerleih({ geraet, ausleihen, orgName }: { geraet: Geraet; 
                       </div>
                     )}
                   </div>
-                  {pdfButton(a)}
+                  <div className="flex flex-wrap gap-2">
+                    {pdfButton(a)}
+                    {loeschenButton(a)}
+                  </div>
                 </li>
               )
             })}
@@ -112,6 +132,36 @@ export function GeraetVerleih({ geraet, ausleihen, orgName }: { geraet: Geraet; 
 
       {ausgabe && <AusgabeModal geraet={geraet} onClose={() => setAusgabe(false)} />}
       {rueckgabe && offen && <RueckgabeModal ausleihe={offen} onClose={() => setRueckgabe(false)} />}
+      {loeschen && (
+        <Modal
+          open
+          onClose={() => setLoeschen(null)}
+          title="Verleih löschen?"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setLoeschen(null)}>
+                Abbrechen
+              </Button>
+              <Button
+                variant="danger"
+                icon={<Trash2 size={16} />}
+                onClick={async () => {
+                  await db.ausleihen.delete(loeschen.id)
+                  setLoeschen(null)
+                }}
+              >
+                Endgültig löschen
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Der Verleih an <b>{loeschen.empfaenger}</b> vom {fmtDatumZeit(loeschen.ausgabeZeit)} wird mit Inventar-Checkliste und Rückgabe gelöscht.
+            {loeschen.status === 'verliehen' && ' Das Gerät gilt danach wieder als bei Ihnen.'}
+          </p>
+          <p className="mt-2 text-sm text-gray-600">Mängel, die bei der Rückgabe angelegt wurden, bleiben am Gerät bestehen. Bereits ausgedruckte Protokolle sind davon nicht betroffen.</p>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -125,6 +175,21 @@ function Zeile({ k, v }: { k: string; v?: string }) {
   )
 }
 
+function KofferLabel({ p, n, von }: { p: VerleihPosition; n: number; von?: number }) {
+  return (
+    <span className="flex items-start gap-2">
+      <Briefcase size={18} className="mt-0.5 shrink-0" />
+      <span>
+        {p.bezeichnung}
+        <span className="block text-xs text-gray-600">
+          {p.inventarnummer ? `Inv.-Nr. ${p.inventarnummer} · ` : ''}
+          {von !== undefined ? `${n} von ${von} Teilen im Koffer` : `${n} Teil${n === 1 ? '' : 'e'} im Koffer`}
+        </span>
+      </span>
+    </span>
+  )
+}
+
 function teilLabel(p: VerleihPosition) {
   return (
     <span>
@@ -135,6 +200,23 @@ function teilLabel(p: VerleihPosition) {
         {p.seriennummer ? ` · S/N ${p.seriennummer}` : ''}
       </span>
     </span>
+  )
+}
+
+/** Aufklappbarer Kofferinhalt */
+function KofferInhalt({ g, children }: { g: InventarGruppe; children: (x: InventarGruppe['inhalt'][number]) => ReactNode }) {
+  return (
+    <details className="group ml-9 mb-2">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-rot-700">
+        <ChevronRight size={16} className="transition-transform group-open:rotate-90" />
+        Inhalt anzeigen ({g.inhalt.length} Teil{g.inhalt.length === 1 ? '' : 'e'})
+      </summary>
+      <ul className="mt-1 flex flex-col border-l-2 border-linie pl-3">
+        {g.inhalt.map((x) => (
+          <li key={x.pos.teilId}>{children(x)}</li>
+        ))}
+      </ul>
+    </details>
   )
 }
 
@@ -211,9 +293,16 @@ function AusgabeModal({ geraet, onClose }: { geraet: Geraet; onClose: () => void
             </Button>
           </div>
           <ul className="divide-y divide-linie rounded-md border border-linie px-3">
-            {a.positionen.map((p, i) => (
-              <li key={p.teilId}>
-                <Checkbox checked={p.ausgegeben} onChange={(v) => setPos(i, { ausgegeben: v })} label={teilLabel(p)} />
+            {inventarGruppen(a.positionen).map((g) => (
+              <li key={g.pos.teilId}>
+                <Checkbox
+                  checked={g.pos.ausgegeben}
+                  onChange={(v) => set({ positionen: setzeAusgegeben(a.positionen, g.pos.teilId, v) })}
+                  label={g.inhalt.length ? <KofferLabel p={g.pos} n={g.inhalt.filter((x) => x.pos.ausgegeben).length} von={g.inhalt.length} /> : teilLabel(g.pos)}
+                />
+                {g.inhalt.length > 0 && (
+                  <KofferInhalt g={g}>{(x) => <Checkbox checked={x.pos.ausgegeben} onChange={(v) => setPos(x.index, { ausgegeben: v })} label={teilLabel(x.pos)} />}</KofferInhalt>
+                )}
               </li>
             ))}
           </ul>
@@ -237,7 +326,10 @@ function RueckgabeModal({ ausleihe, onClose }: { ausleihe: Ausleihe; onClose: ()
   const [fehler, setFehler] = useState('')
   const set = (p: Partial<Ausleihe>) => setA({ ...a, ...p })
   const setPos = (i: number, p: Partial<VerleihPosition>) => set({ positionen: a.positionen.map((x, j) => (j === i ? { ...x, ...p } : x)) })
-  const ausgegeben = a.positionen.map((p, i) => ({ p, i })).filter((x) => x.p.ausgegeben)
+  // nur mitgegebene Teile prüfen; Kofferinhalt aufklappbar unter dem Koffer
+  const gruppen = inventarGruppen(a.positionen)
+    .map((g) => ({ ...g, inhalt: g.inhalt.filter((x) => x.pos.ausgegeben) }))
+    .filter((g) => g.pos.ausgegeben || g.inhalt.length > 0)
   const { fehlend, beschaedigt } = rueckgabeErgebnis(a)
 
   const speichern = async () => {
@@ -288,16 +380,33 @@ function RueckgabeModal({ ausleihe, onClose }: { ausleihe: Ausleihe; onClose: ()
             </Button>
           </div>
           <ul className="divide-y divide-linie rounded-md border border-linie px-3">
-            {ausgegeben.map(({ p, i }) => (
-              <li key={p.teilId} className="flex flex-col gap-2 py-3">
-                {teilLabel(p)}
+            {gruppen.map((g) => (
+              <li key={g.pos.teilId} className="flex flex-col gap-2 py-3">
+                {g.inhalt.length ? <KofferLabel p={g.pos} n={g.inhalt.length} /> : teilLabel(g.pos)}
                 <Segmented
-                  value={p.rueckgabe}
-                  onChange={(v) => setPos(i, { rueckgabe: v })}
+                  value={g.pos.rueckgabe}
+                  onChange={(v) => set({ positionen: setzeRueckgabe(a.positionen, g.pos.teilId, v) })}
                   options={(['ok', 'beschaedigt', 'fehlt'] as const).map((v) => ({ value: v, label: RUECKGABE_LABEL[v] }))}
                 />
-                {p.rueckgabe && p.rueckgabe !== 'ok' && (
-                  <TextInput label="Was ist passiert?" value={p.bemerkung ?? ''} onChange={(e) => setPos(i, { bemerkung: e.target.value })} />
+                {g.pos.rueckgabe && g.pos.rueckgabe !== 'ok' && (
+                  <TextInput label="Was ist passiert?" value={g.pos.bemerkung ?? ''} onChange={(e) => setPos(g.index, { bemerkung: e.target.value })} />
+                )}
+                {g.inhalt.length > 0 && (
+                  <KofferInhalt g={g}>
+                    {(x) => (
+                      <div className="flex flex-col gap-2 py-2">
+                        {teilLabel(x.pos)}
+                        <Segmented
+                          value={x.pos.rueckgabe}
+                          onChange={(v) => setPos(x.index, { rueckgabe: v })}
+                          options={(['ok', 'beschaedigt', 'fehlt'] as const).map((v) => ({ value: v, label: RUECKGABE_LABEL[v] }))}
+                        />
+                        {x.pos.rueckgabe && x.pos.rueckgabe !== 'ok' && (
+                          <TextInput label="Was ist passiert?" value={x.pos.bemerkung ?? ''} onChange={(e) => setPos(x.index, { bemerkung: e.target.value })} />
+                        )}
+                      </div>
+                    )}
+                  </KofferInhalt>
                 )}
               </li>
             ))}

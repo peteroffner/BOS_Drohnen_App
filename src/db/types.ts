@@ -99,6 +99,8 @@ export interface Akku {
   nummer: string // "1", "2", "FB-1" …
   inventarnummer?: string
   seriennummer?: string
+  /** Liegt in diesem Koffer (ID eines Zubehörs der Kategorie 'koffer') */
+  behaelterId?: ID
   art: 'drohne' | 'fernbedienung'
   /** Zyklen vor Einführung der App */
   vorerfassteZyklen?: number
@@ -145,6 +147,8 @@ export interface Zubehoer {
   inventarnummer?: string
   seriennummer?: string
   anzahl?: number // z. B. 4 Ersatzpropeller (Standard 1)
+  /** Liegt in diesem Koffer (ID eines Zubehörs der Kategorie 'koffer'); Koffer selbst liegen in keinem Koffer */
+  behaelterId?: ID
   status: 'ok' | 'defekt' | 'ausgemustert'
   bemerkung?: string
 }
@@ -160,6 +164,8 @@ export interface VerleihPosition {
   inventarnummer?: string
   seriennummer?: string
   anzahl?: number
+  /** Teil liegt im Koffer mit dieser teilId (wird mit dem Koffer abgehakt) */
+  behaelterId?: ID
   /** Ausgabe: mitgegeben (abgehakt) */
   ausgegeben: boolean
   /** Rückgabe: zurück und in Ordnung / beschädigt / fehlt (nur bei ausgegebenen Teilen) */

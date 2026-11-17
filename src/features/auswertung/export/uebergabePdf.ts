@@ -33,9 +33,12 @@ export function uebergabePdfDoc(a: Ausleihe, geraet: Geraet, orgName?: string, e
     { text: 'Rückgabe', style: 'th' },
     { text: 'Bemerkung', style: 'th' },
   ]
+  const koffer = new Set(a.positionen.filter((p) => p.behaelterId).map((p) => p.behaelterId))
   const zeilen = a.positionen.map((p) => [
     p.inventarnummer ?? '–',
-    `${p.bezeichnung}${p.anzahl ? ` (${p.anzahl} Stk.)` : ''}`,
+    p.behaelterId
+      ? { text: `${p.bezeichnung}${p.anzahl ? ` (${p.anzahl} Stk.)` : ''}`, margin: [12, 0, 0, 0] as [number, number, number, number], color: PDF_FARBE.grau }
+      : { text: `${p.bezeichnung}${p.anzahl ? ` (${p.anzahl} Stk.)` : ''}${koffer.has(p.teilId) ? ' – Koffer, Inhalt:' : ''}`, bold: koffer.has(p.teilId) },
     p.seriennummer ?? '–',
     p.ausgegeben ? 'ja' : 'nein',
     !p.ausgegeben ? '–' : p.rueckgabe ? { text: RUECKGABE[p.rueckgabe], bold: p.rueckgabe !== 'ok', color: p.rueckgabe === 'ok' ? PDF_FARBE.anthrazit : PDF_FARBE.rot } : zurueck ? '?' : '',

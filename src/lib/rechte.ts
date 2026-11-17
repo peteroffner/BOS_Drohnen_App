@@ -23,6 +23,7 @@ export type Aktion =
   | 'freigabe.erteilen'
   | 'geraet.verwalten' // Geräte, Akkus, Zubehör/Inventar
   | 'geraet.verleihen' // Verleih an andere Organisationen (Ausgabe/Rückgabe)
+  | 'verleih.loeschen' // Verleih-Eintrag löschen (z. B. Fehleingabe)
   | 'wartung.durchfuehren'
   | 'mangel.anlegen'
   | 'mangel.beheben'
@@ -41,6 +42,7 @@ const MATRIX: Record<Aktion, Rolle[]> = {
   'freigabe.erteilen': ['admin'],
   'geraet.verwalten': ['admin', 'teamleiter'],
   'geraet.verleihen': ['admin', 'teamleiter'],
+  'verleih.loeschen': ['admin'],
   'wartung.durchfuehren': ['admin', 'teamleiter'],
   'mangel.anlegen': ['admin', 'teamleiter', 'pilot'],
   'mangel.beheben': ['admin', 'teamleiter'],

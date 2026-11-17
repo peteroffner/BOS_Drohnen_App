@@ -2,10 +2,12 @@ import { BatteryFull, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { db, neueId } from '../../db/db'
 import type { Akku, Einsatz, Geraet } from '../../db/types'
-import { Badge, Button, Card, Checkbox, EmptyState, Modal, Segmented, TextInput } from '../../components/ui'
+import { Badge, Button, Card, Checkbox, EmptyState, Modal, Segmented, Select, TextInput } from '../../components/ui'
+import type { Zubehoer } from '../../db/types'
 import { geraetStatistik } from '../../lib/stats'
 import { useDarf } from '../auth/kontext'
 import { AKKU_ART_LABEL, AKKU_STATUS_LABEL, akkuVerwendet } from './logic'
+import { aktiveKoffer } from './inventar'
 
 const STATUS_FARBE: Record<Akku['status'], 'gruen' | 'gelb' | 'grau'> = { ok: 'gruen', beobachten: 'gelb', ausgemustert: 'grau' }
 
@@ -75,6 +77,7 @@ export function GeraetAkkus({ geraet, einsaetze }: { geraet: Geraet; einsaetze: 
         <AkkuModal
           key={bearbeiten.id}
           akku={bearbeiten}
+          koffer={aktiveKoffer(geraet)}
           neu={!geraet.akkus.some((x) => x.id === bearbeiten.id)}
           verwendet={akkuVerwendet(bearbeiten.id, einsaetze)}
           onClose={() => setBearbeiten(null)}
@@ -88,6 +91,7 @@ export function GeraetAkkus({ geraet, einsaetze }: { geraet: Geraet; einsaetze: 
 
 function AkkuModal({
   akku,
+  koffer,
   neu,
   verwendet,
   onClose,
@@ -95,6 +99,7 @@ function AkkuModal({
   onDelete,
 }: {
   akku: Akku
+  koffer: Zubehoer[]
   neu: boolean
   verwendet: boolean
   onClose: () => void
@@ -154,6 +159,15 @@ function AkkuModal({
           <TextInput label="Inventarnummer" value={a.inventarnummer ?? ''} onChange={(e) => setA({ ...a, inventarnummer: e.target.value })} />
           <TextInput label="Seriennummer" value={a.seriennummer ?? ''} onChange={(e) => setA({ ...a, seriennummer: e.target.value })} />
         </div>
+        {koffer.length > 0 && (
+          <Select
+            label="Liegt in Koffer"
+            value={a.behaelterId ?? ''}
+            onChange={(e) => setA({ ...a, behaelterId: e.target.value || undefined })}
+            placeholder="– lose, in keinem Koffer –"
+            options={koffer.map((k) => ({ value: k.id, label: k.bezeichnung + (k.inventarnummer ? ` (${k.inventarnummer})` : '') }))}
+          />
+        )}
         <TextInput label="Bemerkung" value={a.bemerkung ?? ''} onChange={(e) => setA({ ...a, bemerkung: e.target.value })} placeholder="z. B. Zelle 3 schwächer" />
         {!neu && verwendet && <p className="text-sm text-gray-600">Dieser Akku wurde in Flügen verwendet und kann nicht gelöscht, nur ausgemustert werden.</p>}
       </div>

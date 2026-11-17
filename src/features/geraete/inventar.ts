@@ -1,4 +1,4 @@
-import type { Ausleihe, Geraet, Mangel, VerleihPosition, ZubehoerKategorie } from '../../db/types'
+import type { Ausleihe, Geraet, Mangel, VerleihPosition, Zubehoer, ZubehoerKategorie } from '../../db/types'
 
 export const ZUBEHOER_KATEGORIE_LABEL: Record<ZubehoerKategorie, string> = {
   fernsteuerung: 'Fernsteuerung',
@@ -13,12 +13,20 @@ export const ZUBEHOER_KATEGORIE_LABEL: Record<ZubehoerKategorie, string> = {
 
 export const ZUBEHOER_STATUS_LABEL = { ok: 'in Ordnung', defekt: 'defekt', ausgemustert: 'ausgemustert' } as const
 
+/** Aktive Koffer (Zubehör der Kategorie „koffer“) eines Geräts */
+export function aktiveKoffer(g: Geraet): Zubehoer[] {
+  return (g.zubehoer ?? []).filter((z) => z.kategorie === 'koffer' && z.status !== 'ausgemustert')
+}
+
 /**
  * Alle aktiven Inventarteile eines Geräts als Checklisten-Positionen
- * (Drohne, Akkus, Zubehör – ausgemusterte Teile nicht).
+ * (Drohne, Akkus, Zubehör – ausgemusterte Teile nicht). Teile in einem aktiven Koffer
+ * bekommen `behaelterId` und stehen direkt nach ihrem Koffer.
  */
 export function inventarPositionen(g: Geraet): VerleihPosition[] {
-  const out: VerleihPosition[] = [
+  const koffer = new Set(aktiveKoffer(g).map((k) => k.id))
+  const imKoffer = (id?: string) => (id && koffer.has(id) ? id : undefined)
+  const flach: VerleihPosition[] = [
     {
       teilId: g.id,
       art: 'drohne',
@@ -29,27 +37,60 @@ export function inventarPositionen(g: Geraet): VerleihPosition[] {
     },
   ]
   for (const a of g.akkus.filter((x) => x.status !== 'ausgemustert')) {
-    out.push({
+    flach.push({
       teilId: a.id,
       art: 'akku',
       bezeichnung: `Akku Nr. ${a.nummer} (${a.art === 'drohne' ? 'Drohne' : 'Fernbedienung'})`,
       inventarnummer: a.inventarnummer,
       seriennummer: a.seriennummer,
+      behaelterId: imKoffer(a.behaelterId),
       ausgegeben: false,
     })
   }
   for (const z of (g.zubehoer ?? []).filter((x) => x.status !== 'ausgemustert')) {
-    out.push({
+    flach.push({
       teilId: z.id,
       art: 'zubehoer',
       bezeichnung: z.bezeichnung || ZUBEHOER_KATEGORIE_LABEL[z.kategorie],
       inventarnummer: z.inventarnummer,
       seriennummer: z.seriennummer,
       anzahl: z.anzahl && z.anzahl > 1 ? z.anzahl : undefined,
+      behaelterId: z.kategorie === 'koffer' ? undefined : imKoffer(z.behaelterId),
       ausgegeben: false,
     })
   }
-  return out
+  return sortiereNachKoffer(flach)
+}
+
+/** Reihenfolge: lose Teile und Koffer wie gehabt, Inhalt direkt nach seinem Koffer */
+export function sortiereNachKoffer(p: VerleihPosition[]): VerleihPosition[] {
+  const oben = p.filter((x) => !x.behaelterId)
+  return oben.flatMap((x) => [x, ...p.filter((y) => y.behaelterId === x.teilId)])
+}
+
+export interface InventarGruppe {
+  pos: VerleihPosition
+  index: number
+  inhalt: { pos: VerleihPosition; index: number }[]
+}
+
+/** Gruppen für die Anzeige: oberste Ebene mit ihrem Kofferinhalt (index = Position in der Liste) */
+export function inventarGruppen(p: VerleihPosition[]): InventarGruppe[] {
+  const mitIndex = p.map((pos, index) => ({ pos, index }))
+  const ids = new Set(p.map((x) => x.teilId))
+  return mitIndex
+    .filter((x) => !x.pos.behaelterId || !ids.has(x.pos.behaelterId))
+    .map((x) => ({ ...x, inhalt: mitIndex.filter((y) => y.pos.behaelterId === x.pos.teilId) }))
+}
+
+/** Koffer abhaken/abwählen: Inhalt folgt */
+export function setzeAusgegeben(p: VerleihPosition[], teilId: string, an: boolean): VerleihPosition[] {
+  return p.map((x) => (x.teilId === teilId || x.behaelterId === teilId ? { ...x, ausgegeben: an } : x))
+}
+
+/** Rückgabe-Status setzen: beim Koffer gilt er für den mitgegebenen Inhalt mit */
+export function setzeRueckgabe(p: VerleihPosition[], teilId: string, status: NonNullable<VerleihPosition['rueckgabe']>): VerleihPosition[] {
+  return p.map((x) => (x.teilId === teilId || (x.behaelterId === teilId && x.ausgegeben) ? { ...x, rueckgabe: status } : x))
 }
 
 /** Offene Ausleihe eines Geräts (höchstens eine) */

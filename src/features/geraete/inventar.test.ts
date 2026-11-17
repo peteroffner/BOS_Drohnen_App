@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Ausleihe, Geraet } from '../../db/types'
-import { ausgabeFehler, doppelteInventarnummern, inventarPositionen, offeneAusleihe, rueckgabeFehler, rueckgabeMaengel } from './inventar'
+import { ausgabeFehler, doppelteInventarnummern, inventarGruppen, inventarPositionen, offeneAusleihe, rueckgabeFehler, rueckgabeMaengel, setzeAusgegeben, setzeRueckgabe } from './inventar'
 
 const geraet: Geraet = {
   id: 'g1',
@@ -77,5 +77,46 @@ describe('Verleih', () => {
     expect(m[0]).toMatchObject({ quelle: 'verleih', ausleiheId: 'l1', geraetId: 'g1' })
     expect(m[0].beschreibung).toContain('INV-010')
     expect(m[1].beschreibung).toContain('Display gesprungen')
+  })
+})
+
+describe('Koffer', () => {
+  const mitKoffer: Geraet = {
+    ...geraet,
+    akkus: [
+      { id: 'a1', nummer: '1', art: 'drohne', status: 'ok', behaelterId: 'k1' },
+      { id: 'a3', nummer: '3', art: 'drohne', status: 'ok' },
+    ],
+    zubehoer: [
+      { id: 'z1', kategorie: 'bildschirm', bezeichnung: 'Monitor', status: 'ok', behaelterId: 'k1' },
+      { id: 'k1', kategorie: 'koffer', bezeichnung: 'Koffer groß', status: 'ok' },
+      { id: 'z4', kategorie: 'ladegeraet', bezeichnung: 'Ladegerät', status: 'ok', behaelterId: 'kAlt' },
+      { id: 'kAlt', kategorie: 'koffer', bezeichnung: 'Alter Koffer', status: 'ausgemustert' },
+    ],
+  }
+  it('Inhalt steht nach dem Koffer; Teile in ausgemusterten Koffern sind lose', () => {
+    const p = inventarPositionen(mitKoffer)
+    expect(p.map((x) => [x.teilId, x.behaelterId ?? null])).toEqual([
+      ['g1', null],
+      ['a3', null],
+      ['k1', null],
+      ['a1', 'k1'],
+      ['z1', 'k1'],
+      ['z4', null],
+    ])
+    const g = inventarGruppen(p)
+    expect(g.map((x) => [x.pos.teilId, x.inhalt.map((y) => y.pos.teilId)])).toEqual([
+      ['g1', []],
+      ['a3', []],
+      ['k1', ['a1', 'z1']],
+      ['z4', []],
+    ])
+  })
+  it('Koffer abhaken hakt den Inhalt mit ab, Rückgabe-Status gilt für den Inhalt', () => {
+    let p = setzeAusgegeben(inventarPositionen(mitKoffer), 'k1', true)
+    expect(p.filter((x) => x.ausgegeben).map((x) => x.teilId)).toEqual(['k1', 'a1', 'z1'])
+    p = p.map((x) => (x.teilId === 'z1' ? { ...x, ausgegeben: false } : x))
+    p = setzeRueckgabe(p, 'k1', 'ok')
+    expect(p.filter((x) => x.rueckgabe).map((x) => x.teilId)).toEqual(['k1', 'a1'])
   })
 })

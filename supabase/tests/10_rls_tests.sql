@@ -258,6 +258,11 @@ select tests.ok(tests.zeilen($$update public.ausleihen set data = data || '{"sta
 select tests.als('p1');
 select tests.ok((select count(*) from public.ausleihen) = 1, 'pilot sieht den Verleih');
 select tests.ok(tests.zeilen($$update public.ausleihen set data = data || '{"status":"verliehen"}'$$) = 0, 'pilot kann Verleih nicht ändern');
+select tests.als('tl');
+select tests.fehler($$update public.ausleihen set deleted = true$$, '42501', 'teamleiter kann Verleih nicht löschen');
+select tests.als('a1');
+select tests.ok(tests.zeilen($$update public.ausleihen set deleted = true$$) = 1, 'admin löscht Verleih (Grabstein)');
+select tests.ok((select deleted from public.ausleihen) is true, 'Verleih als gelöscht markiert');
 select tests.als('b1');
 select tests.ok((select count(*) from public.ausleihen) = 0, 'fremde Org sieht den Verleih nicht');
 
