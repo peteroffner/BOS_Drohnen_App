@@ -11,6 +11,9 @@ import { dbFehlerText, istEmail, mitgliedName, type EinladungZeile, type Mitglie
 import { usePiloten } from '../einsatz/data'
 import { APP_LINK, einladungsText, einladungPruefen, zugangsText } from './logik'
 
+/** Name (Slug) der Edge Function in Supabase – im Dashboard angelegte Funktionen bekommen evtl. einen eigenen Slug */
+const FN_BENUTZER_ANLEGEN = (import.meta.env.VITE_FN_BENUTZER_ANLEGEN as string | undefined) || 'benutzer-anlegen'
+
 const ROLLEN_OPTIONEN = ROLLEN.map((r) => ({ value: r.value, label: r.label }))
 
 /** Mitglieder und Einladungen der Organisation laden */
@@ -298,7 +301,7 @@ function EinladungenCard({
   const zugangAnlegen = async (e: EinladungZeile) => {
     setZugang({ email: e.email, laeuft: true })
     setZugangKopiert(false)
-    const { data, error } = await sb.functions.invoke('benutzer-anlegen', { body: { einladungId: e.id } })
+    const { data, error } = await sb.functions.invoke(FN_BENUTZER_ANLEGEN, { body: { einladungId: e.id } })
     if (error) {
       let text = 'Zugang konnte nicht angelegt werden.'
       const ctx = (error as { context?: Response }).context
@@ -311,7 +314,7 @@ function EinladungenCard({
         }
       }
       if (ctx?.status === 404 && text === 'Zugang konnte nicht angelegt werden.')
-        text = 'Die Server-Funktion „benutzer-anlegen“ ist in Supabase noch nicht eingerichtet.'
+        text = `Die Server-Funktion „${FN_BENUTZER_ANLEGEN}“ wurde in Supabase nicht gefunden.`
       setZugang({ email: e.email, fehler: text })
       return
     }
