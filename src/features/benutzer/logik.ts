@@ -22,3 +22,16 @@ export function einladungsText(orgName: string): string {
     '3. Bestätigungsmail öffnen, danach anmelden.',
   ].join('\n')
 }
+
+/** Text mit Zugangsdaten (Startpasswort) zum Weitergeben */
+export function zugangsText(orgName: string, email: string, passwort: string): string {
+  return [
+    `Dein Zugang zur BOS Drohnen-App (${orgName}):`,
+    '',
+    `App: ${APP_LINK}`,
+    `E-Mail: ${email}`,
+    `Startpasswort: ${passwort}`,
+    '',
+    'Bitte mit „Anmelden“ einloggen (nicht „Registrieren“). Beim ersten Anmelden legst du dein eigenes Passwort fest.',
+  ].join('\n')
+}

@@ -1,4 +1,4 @@
-import { Copy, MailPlus, RefreshCw, Trash2, UserMinus, Users } from 'lucide-react'
+import { Copy, KeyRound, MailPlus, RefreshCw, Trash2, UserMinus, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Pilot } from '../../db/types'
 import { Badge, Button, Card, EmptyState, Modal, NurAnsichtHinweis, PageHeader, Select, TextInput } from '../../components/ui'
@@ -9,7 +9,7 @@ import { useOrg } from '../../lib/useOrg'
 import { useAuth, useDarf } from '../auth/kontext'
 import { dbFehlerText, istEmail, mitgliedName, type EinladungZeile, type MitgliedZeile } from '../auth/logik'
 import { usePiloten } from '../einsatz/data'
-import { APP_LINK, einladungsText, einladungPruefen } from './logik'
+import { APP_LINK, einladungsText, einladungPruefen, zugangsText } from './logik'
 
 const ROLLEN_OPTIONEN = ROLLEN.map((r) => ({ value: r.value, label: r.label }))
 
@@ -272,6 +272,8 @@ function EinladungenCard({
   const [formFehler, setFormFehler] = useState<string>()
   const [laeuft, setLaeuft] = useState(false)
   const [kopiert, setKopiert] = useState(false)
+  const [zugang, setZugang] = useState<{ email: string; passwort?: string; fehler?: string; laeuft?: boolean }>()
+  const [zugangKopiert, setZugangKopiert] = useState(false)
   if (!supabase) return null
   const sb = supabase
   const offen = (einladungen ?? []).filter((e) => !e.angenommen_am)
@@ -291,6 +293,30 @@ function EinladungenCard({
       setEmail('')
       setPilotId('')
     }
+  }
+
+  const zugangAnlegen = async (e: EinladungZeile) => {
+    setZugang({ email: e.email, laeuft: true })
+    setZugangKopiert(false)
+    const { data, error } = await sb.functions.invoke('benutzer-anlegen', { body: { einladungId: e.id } })
+    if (error) {
+      let text = 'Zugang konnte nicht angelegt werden.'
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        try {
+          const j = await ctx.json()
+          if (j?.fehler) text = j.fehler
+        } catch {
+          /* keine JSON-Antwort */
+        }
+      }
+      if (ctx?.status === 404 && text === 'Zugang konnte nicht angelegt werden.')
+        text = 'Die Server-Funktion „benutzer-anlegen“ ist in Supabase noch nicht eingerichtet.'
+      setZugang({ email: e.email, fehler: text })
+      return
+    }
+    setZugang({ email: e.email, passwort: (data as { passwort: string }).passwort })
+    await aendern(async () => ({ error: null }))
   }
 
   const kopieren = async () => {
@@ -339,6 +365,10 @@ function EinladungenCard({
             <li>Bestätigungsmail öffnen, danach anmelden. Die Zuordnung zur Organisation erfolgt automatisch.</li>
           </ol>
           <p className="mt-1 text-xs text-gray-600">Die App verschickt selbst keine Einladungsmail – bitte den Text weitergeben (E-Mail, Messenger).</p>
+          <p className="mt-2 text-xs text-gray-600">
+            <b>Ohne E-Mail-Bestätigung:</b> Bei einer offenen Einladung „Zugang anlegen“ wählen. Die App erzeugt ein Startpasswort, das Sie persönlich weitergeben; beim
+            ersten Anmelden legt die Person ihr eigenes Passwort fest.
+          </p>
           <Button className="mt-2" size="sm" variant="secondary" icon={<Copy size={16} />} onClick={() => void kopieren()}>
             {kopiert ? 'Kopiert' : 'Einladungstext kopieren'}
           </Button>
@@ -361,6 +391,9 @@ function EinladungenCard({
                       {e.pilot_id && ` · Pilot: ${pilot(e.pilot_id)}`} · eingeladen am {fmtDatum(e.erstellt_am)}
                     </div>
                   </div>
+                  <Button variant="secondary" size="sm" icon={<KeyRound size={16} />} onClick={() => void zugangAnlegen(e)}>
+                    Zugang anlegen
+                  </Button>
                   <Button
                     variant="ghost"
                     icon={<Trash2 size={18} />}
@@ -374,6 +407,52 @@ function EinladungenCard({
             </ul>
           )}
         </div>
+
+        <Modal
+          open={!!zugang}
+          onClose={() => setZugang(undefined)}
+          title="Zugang anlegen"
+          footer={
+            <Button variant="secondary" onClick={() => setZugang(undefined)}>
+              Schließen
+            </Button>
+          }
+        >
+          {zugang?.laeuft && <p>Zugang für {zugang.email} wird angelegt …</p>}
+          {zugang?.fehler && (
+            <p role="alert" className="font-semibold text-fehler">
+              {zugang.fehler}
+            </p>
+          )}
+          {zugang?.passwort && (
+            <div className="flex flex-col gap-3 text-anthrazit">
+              <p className="font-semibold text-ok">Der Zugang ist angelegt und der Organisation zugeordnet.</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border border-linie bg-flaeche p-3">
+                <dt className="text-gray-600">E-Mail</dt>
+                <dd className="break-all font-semibold">{zugang.email}</dd>
+                <dt className="text-gray-600">Startpasswort</dt>
+                <dd className="font-mono text-lg font-bold tracking-wider">{zugang.passwort}</dd>
+              </dl>
+              <p className="text-sm">
+                Das Startpasswort wird <b>nur jetzt</b> angezeigt. Bitte persönlich oder per Nachricht weitergeben. Beim ersten Anmelden muss die Person ein eigenes Passwort festlegen.
+              </p>
+              <Button
+                variant="secondary"
+                icon={<Copy size={16} />}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(zugangsText(orgName, zugang.email, zugang.passwort!))
+                    setZugangKopiert(true)
+                  } catch {
+                    /* Zwischenablage nicht verfügbar */
+                  }
+                }}
+              >
+                {zugangKopiert ? 'Kopiert' : 'Zugangsdaten als Text kopieren'}
+              </Button>
+            </div>
+          )}
+        </Modal>
 
         {angenommen.length > 0 && (
           <div>

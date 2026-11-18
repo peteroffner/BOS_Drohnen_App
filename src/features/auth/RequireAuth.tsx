@@ -22,6 +22,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (session === undefined) return <LadeSeite text="Anmeldung wird geprüft …" />
   if (passwortRecovery && session) return <PasswortNeuSeite />
   if (!session) return <AnmeldenSeite />
+  if (session.user.user_metadata?.passwort_aendern === true) return <PasswortNeuSeite erstesPasswort />
   if (mitgliedschaft === undefined)
     return (
       <LadeSeite

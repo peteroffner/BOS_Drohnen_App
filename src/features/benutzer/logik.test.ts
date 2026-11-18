@@ -16,3 +16,14 @@ it('Einladungstext enthält App-Link und Organisation', () => {
   expect(t).toContain('FF Musterdorf')
   expect(t).toContain('Registrieren')
 })
+
+describe('Zugangstext', () => {
+  it('enthält App-Link, E-Mail und Startpasswort und weist auf „Anmelden“ hin', async () => {
+    const { zugangsText } = await import('./logik')
+    const t = zugangsText('FF Musterdorf', 'a@b.at', 'abcd-efgh-jkmn')
+    expect(t).toContain(APP_LINK)
+    expect(t).toContain('a@b.at')
+    expect(t).toContain('abcd-efgh-jkmn')
+    expect(t).toMatch(/Anmelden/)
+  })
+})

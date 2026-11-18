@@ -5,8 +5,11 @@ import { AuthRahmen, Meldung } from './AuthRahmen'
 import { useAuth } from './kontext'
 import { authFehlerText, MIN_PASSWORT_LAENGE, passwortPruefen } from './logik'
 
-/** Nach Klick auf den Link „Passwort zurücksetzen“ (Event PASSWORD_RECOVERY). */
-export function PasswortNeuSeite() {
+/**
+ * Nach Klick auf den Link „Passwort zurücksetzen“ (Event PASSWORD_RECOVERY) oder beim
+ * ersten Login mit einem vom Administrator vergebenen Startpasswort (erstesPasswort).
+ */
+export function PasswortNeuSeite({ erstesPasswort }: { erstesPasswort?: boolean } = {}) {
   const { passwortRecoveryBeenden } = useAuth()
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
@@ -20,14 +23,21 @@ export function PasswortNeuSeite() {
     if (pruef) return setFehler(pruef)
     setLaeuft(true)
     setFehler(undefined)
-    const { error } = await supabase.auth.updateUser({ password: pw })
+    const { error } = await supabase.auth.updateUser({ password: pw, data: { passwort_aendern: false } })
     setLaeuft(false)
     if (error) setFehler(authFehlerText(error))
     else setFertig(true)
   }
 
   return (
-    <AuthRahmen titel="Neues Passwort" untertitel="Bitte ein neues Passwort für dein Konto vergeben.">
+    <AuthRahmen
+      titel={erstesPasswort ? 'Eigenes Passwort festlegen' : 'Neues Passwort'}
+      untertitel={
+        erstesPasswort
+          ? 'Du hast dich mit einem Startpasswort angemeldet. Bitte lege jetzt dein eigenes Passwort fest.'
+          : 'Bitte ein neues Passwort für dein Konto vergeben.'
+      }
+    >
       {fertig ? (
         <>
           <Meldung art="ok">Das Passwort wurde geändert.</Meldung>

@@ -1,11 +1,12 @@
-import { LogOut, RefreshCw, UserRound } from 'lucide-react'
+import { KeyRound, LogOut, RefreshCw, UserRound } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Modal, cx } from '../../components/ui'
+import { Button, Modal, TextInput, cx } from '../../components/ui'
+import { supabase } from '../../lib/supabase'
 import { rollenLabel } from '../../lib/rechte'
 import { ausstehendeAenderungen, syncJetzt } from '../../sync'
 import { abmelden } from './abmelden'
 import { useMitgliedschaft } from './kontext'
-import { mitgliedName } from './logik'
+import { authFehlerText, MIN_PASSWORT_LAENGE, mitgliedName, passwortPruefen } from './logik'
 
 /** Name, Rolle und Abmelden – Seitenleiste (dunkel) bzw. Mehr-Menü (hell). Nur Cloud-Modus. */
 export function BenutzerBereich({ dunkel }: { dunkel?: boolean }) {
@@ -20,8 +21,70 @@ export function BenutzerBereich({ dunkel }: { dunkel?: boolean }) {
         </div>
         <div className={cx('truncate text-xs', dunkel ? 'text-gray-400' : 'text-gray-600')}>{rollenLabel(m.rolle)}</div>
       </div>
+      <PasswortAendernButton dunkel={dunkel} />
       <AbmeldenButton dunkel={dunkel} />
     </div>
+  )
+}
+
+function PasswortAendernButton({ dunkel }: { dunkel?: boolean }) {
+  const [offen, setOffen] = useState(false)
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [meldung, setMeldung] = useState<{ ok: boolean; text: string }>()
+  const [laeuft, setLaeuft] = useState(false)
+  const schliessen = () => {
+    setOffen(false)
+    setPw('')
+    setPw2('')
+    setMeldung(undefined)
+  }
+  const speichern = async () => {
+    if (!supabase) return
+    const f = passwortPruefen(pw, pw2)
+    if (f) return setMeldung({ ok: false, text: f })
+    setLaeuft(true)
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    setLaeuft(false)
+    setMeldung(error ? { ok: false, text: authFehlerText(error) } : { ok: true, text: 'Passwort geändert.' })
+    if (!error) {
+      setPw('')
+      setPw2('')
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOffen(true)}
+        aria-label="Passwort ändern"
+        title="Passwort ändern"
+        className={cx('inline-flex min-h-11 min-w-11 items-center justify-center rounded-md', dunkel ? 'text-gray-300 hover:bg-white/10' : 'text-anthrazit hover:bg-white')}
+      >
+        <KeyRound size={20} />
+      </button>
+      <Modal
+        open={offen}
+        onClose={schliessen}
+        title="Passwort ändern"
+        footer={
+          <>
+            <Button variant="secondary" onClick={schliessen}>
+              Schließen
+            </Button>
+            <Button disabled={!pw || !pw2 || laeuft} onClick={() => void speichern()}>
+              Speichern
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4 text-anthrazit">
+          <TextInput label="Neues Passwort" type="password" autoComplete="new-password" hint={`mindestens ${MIN_PASSWORT_LAENGE} Zeichen`} value={pw} onChange={(e) => setPw(e.target.value)} />
+          <TextInput label="Passwort wiederholen" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+          {meldung && <p className={cx('text-sm font-semibold', meldung.ok ? 'text-ok' : 'text-fehler')}>{meldung.text}</p>}
+        </div>
+      </Modal>
+    </>
   )
 }
 
